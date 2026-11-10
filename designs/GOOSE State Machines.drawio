@@ -1,0 +1,286 @@
+<mxfile host="Electron" pages="3">
+  <diagram name="1 · System State" id="goose-system-state">
+    <mxGraphModel dx="1055" dy="592" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1300" pageHeight="700" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=18;" value="&lt;b&gt;GOOSE – System (health) state&lt;/b&gt;  &lt;font style=&quot;font-size:12px&quot;&gt;fault classes and parameters on page 3&lt;/font&gt;" vertex="1">
+          <mxGeometry height="40" width="760" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="armed" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#b85450;align=left;verticalAlign=top;spacingLeft=8;spacingTop=0;fontSize=11;arcSize=4;" value="&lt;b&gt;ARMED&lt;/b&gt; — emergency fault in ANY state in here → EMERGENCY" vertex="1">
+          <mxGeometry height="290" width="500" x="260" y="250" as="geometry" />
+        </mxCell>
+        <mxCell id="s_boot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=30;" value="&lt;b&gt;BOOT&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Prelim state&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="40" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="s_pre" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=30;" value="&lt;b&gt;PREFLIGHT&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Boot sensors, state estimator convergence, etc.&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="300" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="s_fg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;arcSize=30;" value="&lt;b&gt;FAULT_GROUND&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;On ground, uncleared fault&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="560" y="100" as="geometry" />
+        </mxCell>
+        <mxCell id="s_stby" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=30;" value="&lt;b&gt;STANDBY&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;All systems healthy, ready to arm&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="40" y="285" as="geometry" />
+        </mxCell>
+        <mxCell id="s_act" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;arcSize=30;" value="&lt;b&gt;ACTIVE&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Armed, all healthy&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="300" y="285" as="geometry" />
+        </mxCell>
+        <mxCell id="s_deg" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;arcSize=30;" value="&lt;b&gt;DEGRADED&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Armed, non-critical fault. Log only, no flight effect&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="570" y="285" as="geometry" />
+        </mxCell>
+        <mxCell id="s_crit" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;arcSize=30;" value="&lt;b&gt;CRITICAL&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Armed, failsafe required&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="300" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="s_emer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;arcSize=30;" value="&lt;b&gt;EMERGENCY&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Armed, flight cannot continue safely&lt;/font&gt;" vertex="1">
+          <mxGeometry height="60" width="150" x="570" y="460" as="geometry" />
+        </mxCell>
+        <mxCell id="n_faults" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=11;arcSize=4;" value="&lt;b&gt;RULES&lt;/b&gt;&lt;br&gt;&lt;b&gt;Fault class&lt;/b&gt; picks the state: Non-critical → DEGRADED · Critical → CRITICAL · Emergency → EMERGENCY. The highest active class wins.&lt;br&gt;&lt;br&gt;&lt;b&gt;RC loss&lt;/b&gt;: lost → DEGRADED; still lost after t_rc → CRITICAL, only if RC_REQUIRED.&lt;br&gt;&lt;br&gt;&lt;b&gt;Recovery&lt;/b&gt;: CRITICAL → DEGRADED only if the fault is &lt;i&gt;recoverable&lt;/i&gt;, has been cleared for t_hold, and this flight has had fewer than N_crit_max CRITICAL entries. Otherwise it stays latched until landing.&lt;br&gt;&lt;br&gt;&lt;b&gt;Debounce&lt;/b&gt;: a fault must persist for debounce_ms before it counts.&lt;br&gt;&lt;br&gt;Full table: page 3." vertex="1">
+          <mxGeometry height="300" width="320" x="890" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="n_map" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=11;arcSize=4;" value="&lt;b&gt;EFFECT ON FLIGHT FSM (page 2)&lt;/b&gt;&lt;br&gt;BOOT / PREFLIGHT / FAULT_GROUND / STANDBY → flight held in ON_GROUND&lt;br&gt;ACTIVE, DEGRADED → flight runs normally&lt;br&gt;CRITICAL → LOITER or RTL, per the fault&#39;s response&lt;br&gt;EMERGENCY → EMERGENCY_LAND (REJECTED_TAKEOFF if on the roll)&lt;br&gt;MANUAL → hardware bypass, outside both FSMs" vertex="1">
+          <mxGeometry height="150" width="320" x="890" y="400" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" edge="1" parent="1" source="s_boot" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="s_pre" value="boot_finish">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" edge="1" parent="1" source="s_pre" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.3;entryX=0;entryY=0.3;" target="s_fg" value="fault">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p1" edge="1" parent="1" source="s_fg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.75;entryX=1;entryY=0.75;" target="s_pre" value="cleared → re-check">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" edge="1" parent="1" source="s_pre" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.1;exitY=1;entryX=0.25;entryY=0;" target="s_stby" value="preflight_finish">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="315" y="215" />
+              <mxPoint x="77.5" y="215" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p2" edge="1" parent="1" source="s_stby" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.75;exitY=0;entryX=0.3;entryY=1;" target="s_pre" value="health fault → re-check">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="152.5" y="235" />
+              <mxPoint x="345" y="235" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e4" edge="1" parent="1" source="s_stby" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.25;entryX=0;entryY=0.25;" target="s_act" value="ARM cmd&lt;br&gt;+ arm OK">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p3" edge="1" parent="1" source="s_act" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.75;entryX=1;entryY=0.75;" target="s_stby" value="disarm&lt;br&gt;(on ground)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" edge="1" parent="1" source="s_act" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.25;entryX=0;entryY=0.25;" target="s_deg" value="non-critical fault&lt;br&gt;or RC lost">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" edge="1" parent="1" source="s_deg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.75;entryX=1;entryY=0.75;" target="s_act" value="fault fixed">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" edge="1" parent="1" source="s_act" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" target="s_crit" value="critical&lt;br&gt;fault">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" edge="1" parent="1" source="s_deg" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.75;exitY=1;entryX=0.8667;entryY=0;" target="s_crit" value="critical fault, or RC lost &amp;gt; t_rc (if RC_REQUIRED)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="682.5" y="425" />
+              <mxPoint x="430" y="425" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e12" edge="1" parent="1" source="s_crit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.7;exitY=0;entryX=0.25;entryY=1;" target="s_deg" value="recoverable AND cleared for t_hold&lt;br&gt;AND entries &amp;lt; N_crit_max">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="405" y="395" />
+              <mxPoint x="607.5" y="395" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e11" edge="1" parent="1" source="s_crit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" target="s_emer" value="failsafe&lt;br&gt;can&#39;t hold">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="p4" edge="1" parent="1" source="s_crit" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;entryX=1;entryY=0.25;" target="s_fg" value="landed + disarmed, fault still active">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="375" y="570" />
+              <mxPoint x="800" y="570" />
+              <mxPoint x="800" y="115" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="p5" edge="1" parent="1" source="s_emer" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;entryX=1;entryY=0.75;" target="s_fg" value="landed +&lt;br&gt;disarmed">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="780" y="490" />
+              <mxPoint x="780" y="145" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="2 · Flight State" id="goose-flight-state">
+    <mxGraphModel dx="1600" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1500" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=18;" value="&lt;b&gt;AUTOPILOT – GOOSE&lt;/b&gt; (Good Odds Of Surviving Experiments) — flight state  &lt;font style=&quot;font-size:12px&quot;&gt;faults come from System State (page 1)&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="10" width="1000" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="airborne" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=none;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=2;fontSize=11;arcSize=6;" value="&lt;b&gt;AIRBORNE&lt;/b&gt; — checks System State every loop. CRITICAL with an RTL response (RC, geofence, battery low) → RTL from any state in here." vertex="1">
+          <mxGeometry x="230" y="390" width="860" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="s_on" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=12;" value="&lt;b&gt;ON_GROUND&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Motor locked unless system = ACTIVE&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="120" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s_roll" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=12;" value="&lt;b&gt;TAKEOFF_ROLL&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Full throttle, track centerline, T/O flaps&lt;/font&gt;" vertex="1">
+          <mxGeometry x="700" y="120" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s_rot" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=12;" value="&lt;b&gt;ROTATE&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Pitch to takeoff attitude&lt;/font&gt;" vertex="1">
+          <mxGeometry x="920" y="120" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s_rto" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;arcSize=12;" value="&lt;b&gt;REJECTED_TAKEOFF&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Cut motor, wings level, roll out&lt;/font&gt;" vertex="1">
+          <mxGeometry x="700" y="270" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s_landed" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=12;" value="&lt;b&gt;LANDED&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Motor cut, rollout&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="280" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s_climb" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=12;" value="&lt;b&gt;CLIMB&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Full power, pitch for Vy, flaps up&lt;/font&gt;" vertex="1">
+          <mxGeometry x="920" y="440" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s_cruise" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=12;" value="&lt;b&gt;CRUISE&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Mission / waypoints&lt;/font&gt;" vertex="1">
+          <mxGeometry x="700" y="440" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s_rtl" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=12;" value="&lt;b&gt;RTL&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Navigate home. Stays RTL even if fault clears&lt;/font&gt;" vertex="1">
+          <mxGeometry x="480" y="440" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s_desc" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=12;" value="&lt;b&gt;DESCENT&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Descend to pattern altitude&lt;/font&gt;" vertex="1">
+          <mxGeometry x="260" y="440" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s_land" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=12;" value="&lt;b&gt;LANDING&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Final, flare, touchdown&lt;/font&gt;" vertex="1">
+          <mxGeometry x="40" y="440" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s_loiter" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;arcSize=12;" value="&lt;b&gt;LOITER&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Attitude-hold orbit, wait for recovery&lt;/font&gt;" vertex="1">
+          <mxGeometry x="900" y="620" width="140" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="s_eland" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;arcSize=12;" value="&lt;b&gt;EMERGENCY_LAND&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:10px&quot;&gt;Best reachable site; straight ahead if low&lt;/font&gt;" vertex="1">
+          <mxGeometry x="260" y="620" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="n_manual" parent="1" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=11;arcSize=6;" value="&lt;b&gt;MANUAL (hardware RC bypass)&lt;/b&gt;&lt;br&gt;Reachable from &lt;b&gt;every&lt;/b&gt; state: pilot switch or Teensy watchdog timeout flips the servo mux. The autopilot cannot block it.&lt;br&gt;Pilot re-engages autopilot → LOITER (airborne) or ON_GROUND." vertex="1">
+          <mxGeometry x="1170" y="120" width="250" height="130" as="geometry" />
+        </mxCell>
+        <mxCell id="n_routing" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#b85450;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=11;arcSize=6;" value="&lt;b&gt;SYSTEM STATE → FLIGHT&lt;/b&gt;&lt;br&gt;ACTIVE / DEGRADED: no change&lt;br&gt;CRITICAL: → LOITER or RTL, per the fault&#39;s response (page 3)&lt;br&gt;Recovered while in LOITER: → CRUISE&lt;br&gt;Recovered while in RTL: stay in RTL; pilot can re-command the mission&lt;br&gt;EMERGENCY, airborne: → EMERGENCY_LAND&lt;br&gt;CRITICAL or EMERGENCY on the roll below V1: → REJECTED_TAKEOFF&lt;br&gt;Fault during LANDING: go-around if powered, else continue landing" vertex="1">
+          <mxGeometry x="1170" y="280" width="250" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="n_legend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=11;arcSize=6;" value="&lt;b&gt;LEGEND&lt;/b&gt;&lt;br&gt;Blue = nominal&lt;br&gt;Orange = failsafe (system CRITICAL)&lt;br&gt;Red = abort / system EMERGENCY&lt;br&gt;Dashed = outside the autopilot" vertex="1">
+          <mxGeometry x="1170" y="510" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="e_on_roll" edge="1" parent="1" source="s_on" target="s_roll" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="takeoff cmd AND system = ACTIVE">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_roll_rot" edge="1" parent="1" source="s_roll" target="s_rot" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" value="IAS ≥ V1&lt;br&gt;(committed)">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_rot_climb" edge="1" parent="1" source="s_rot" target="s_climb" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.75;exitY=1;entryX=0.75;entryY=0;" value="airborne:&lt;br&gt;AGL &amp;gt; h_min AND&lt;br&gt;climb rate &amp;gt; 0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_climb_cruise" edge="1" parent="1" source="s_climb" target="s_cruise" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" value="target alt&lt;br&gt;reached">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_cruise_rtl" edge="1" parent="1" source="s_cruise" target="s_rtl" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" value="mission done&lt;br&gt;or CRITICAL,&lt;br&gt;RTL response">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_rtl_desc" edge="1" parent="1" source="s_rtl" target="s_desc" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" value="over&lt;br&gt;landing site">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_desc_land" edge="1" parent="1" source="s_desc" target="s_land" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" value="on final,&lt;br&gt;aligned">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_land_landed" edge="1" parent="1" source="s_land" target="s_landed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" value="touchdown,&lt;br&gt;groundspeed ≈ 0">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_landed_on" edge="1" parent="1" source="s_landed" target="s_on" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=0;entryX=0.5;entryY=1;" value="disarm,&lt;br&gt;flush logs">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_goaround" edge="1" parent="1" source="s_land" target="s_climb" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;entryX=1;entryY=0.5;strokeColor=#b85450;" value="GO-AROUND: unstable approach / runway blocked / landing fault (if powered)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="110" y="790" />
+              <mxPoint x="1130" y="790" />
+              <mxPoint x="1130" y="470" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_roll_rto" edge="1" parent="1" source="s_roll" target="s_rto" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeColor=#b85450;" value="system ≥ CRITICAL&lt;br&gt;AND IAS &amp;lt; V1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_rot_rto" edge="1" parent="1" source="s_rot" target="s_rto" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.25;exitY=1;entryX=1;entryY=0.5;strokeColor=#b85450;" value="no liftoff&lt;br&gt;by t_max">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="955" y="300" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_rto_on" edge="1" parent="1" source="s_rto" target="s_on" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;entryX=0.75;entryY=1;strokeColor=#b85450;" value="stopped, disarm">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="230" y="300" />
+              <mxPoint x="230" y="230" />
+              <mxPoint x="145" y="230" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_air_loiter" edge="1" parent="1" source="airborne" target="s_loiter" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.8953;exitY=1;entryX=0.7143;entryY=0;strokeColor=#d79b00;" value="CRITICAL,&lt;br&gt;LOITER response">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_air_eland" edge="1" parent="1" source="airborne" target="s_eland" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.1279;exitY=1;entryX=0.5;entryY=0;strokeColor=#b85450;" value="system = EMERGENCY">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_loiter_cruise" edge="1" parent="1" source="s_loiter" target="s_cruise" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.3;exitY=0;entryX=0.5;entryY=1;" value="recovered (system back to DEGRADED)">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="942" y="575" />
+              <mxPoint x="770" y="575" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_loiter_eland" edge="1" parent="1" source="s_loiter" target="s_eland" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0.5;exitY=1;entryX=0.5;entryY=1;strokeColor=#b85450;" value="still CRITICAL after t_loiter → system escalates to EMERGENCY">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="970" y="740" />
+              <mxPoint x="340" y="740" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="e_eland_landed" edge="1" parent="1" source="s_eland" target="s_landed" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;fontSize=10;labelBackgroundColor=default;jumpStyle=arc;jumpSize=8;exitX=0;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#b85450;" value="touchdown,&lt;br&gt;stopped">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="-20" y="650" />
+              <mxPoint x="-20" y="310" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="3 · Fault Table" id="goose-fault-table">
+    <mxGraphModel dx="1932" dy="1084" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=18;" value="&lt;b&gt;GOOSE – Fault table&lt;/b&gt;  &lt;font style=&quot;font-size:12px&quot;&gt;one row per fault; the health monitor loops over these&lt;/font&gt;" vertex="1">
+          <mxGeometry height="40" width="900" x="40" y="20" as="geometry" />
+        </mxCell>
+        <mxCell id="table" parent="1" style="text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=left;verticalAlign=top;overflow=fill;fontSize=11;" value="&lt;table border=&quot;1&quot; cellpadding=&quot;5&quot; style=&quot;border-collapse:collapse;width:100%;font-size:11px&quot;&gt;&lt;tr style=&quot;background:#eeeeee&quot;&gt;&lt;th&gt;Fault&lt;/th&gt;&lt;th&gt;Detection&lt;/th&gt;&lt;th&gt;Class&lt;/th&gt;&lt;th&gt;Recoverable&lt;/th&gt;&lt;th&gt;Timeout&lt;/th&gt;&lt;th&gt;System → Flight response&lt;/th&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#fff2cc&quot;&gt;&lt;td&gt;Telemetry link lost&lt;/td&gt;&lt;td&gt;No GCS packets for debounce_ms&lt;/td&gt;&lt;td&gt;Non-critical&lt;/td&gt;&lt;td&gt;yes&lt;/td&gt;&lt;td&gt;–&lt;/td&gt;&lt;td&gt;DEGRADED, log&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#fff2cc&quot;&gt;&lt;td&gt;Redundant sensor drop / disagree&lt;/td&gt;&lt;td&gt;One of N sensors invalid or out of agreement&lt;/td&gt;&lt;td&gt;Non-critical&lt;/td&gt;&lt;td&gt;yes&lt;/td&gt;&lt;td&gt;–&lt;/td&gt;&lt;td&gt;DEGRADED, log&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#fff2cc&quot;&gt;&lt;td&gt;RC link lost&lt;/td&gt;&lt;td&gt;No valid RC frames, or receiver failsafe flag&lt;/td&gt;&lt;td&gt;Non-critical → Critical&lt;/td&gt;&lt;td&gt;yes&lt;/td&gt;&lt;td&gt;t_rc (only if RC_REQUIRED)&lt;/td&gt;&lt;td&gt;DEGRADED; after t_rc → CRITICAL → &lt;b&gt;RTL&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#ffe6cc&quot;&gt;&lt;td&gt;GPS lost&lt;/td&gt;&lt;td&gt;No 3D fix, sats &amp;lt; N_sat, or HDOP &amp;gt; H_max&lt;/td&gt;&lt;td&gt;Critical&lt;/td&gt;&lt;td&gt;yes&lt;/td&gt;&lt;td&gt;t_loiter&lt;/td&gt;&lt;td&gt;CRITICAL → &lt;b&gt;LOITER&lt;/b&gt;; still lost after t_loiter → EMERGENCY&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#ffe6cc&quot;&gt;&lt;td&gt;Geofence breach&lt;/td&gt;&lt;td&gt;Position outside fence&lt;/td&gt;&lt;td&gt;Critical&lt;/td&gt;&lt;td&gt;no&lt;/td&gt;&lt;td&gt;–&lt;/td&gt;&lt;td&gt;CRITICAL → &lt;b&gt;RTL&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#ffe6cc&quot;&gt;&lt;td&gt;Battery low&lt;/td&gt;&lt;td&gt;Pack voltage or mAh used past return reserve&lt;/td&gt;&lt;td&gt;Critical&lt;/td&gt;&lt;td&gt;no&lt;/td&gt;&lt;td&gt;–&lt;/td&gt;&lt;td&gt;CRITICAL → &lt;b&gt;RTL&lt;/b&gt;&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#f8cecc&quot;&gt;&lt;td&gt;Battery critical&lt;/td&gt;&lt;td&gt;Below landing reserve&lt;/td&gt;&lt;td&gt;Emergency&lt;/td&gt;&lt;td&gt;no&lt;/td&gt;&lt;td&gt;–&lt;/td&gt;&lt;td&gt;EMERGENCY → EMERGENCY_LAND&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#f8cecc&quot;&gt;&lt;td&gt;IMU lost / invalid&lt;/td&gt;&lt;td&gt;No samples, or values out of range&lt;/td&gt;&lt;td&gt;Emergency&lt;/td&gt;&lt;td&gt;no&lt;/td&gt;&lt;td&gt;–&lt;/td&gt;&lt;td&gt;EMERGENCY → EMERGENCY_LAND&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#f8cecc&quot;&gt;&lt;td&gt;State estimator divergence&lt;/td&gt;&lt;td&gt;Innovations or covariance over limit&lt;/td&gt;&lt;td&gt;Emergency&lt;/td&gt;&lt;td&gt;no&lt;/td&gt;&lt;td&gt;–&lt;/td&gt;&lt;td&gt;EMERGENCY → EMERGENCY_LAND&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#f8cecc&quot;&gt;&lt;td&gt;Motor / ESC fault&lt;/td&gt;&lt;td&gt;No current or RPM response to throttle&lt;/td&gt;&lt;td&gt;Emergency&lt;/td&gt;&lt;td&gt;no&lt;/td&gt;&lt;td&gt;–&lt;/td&gt;&lt;td&gt;EMERGENCY → EMERGENCY_LAND (glide)&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#f8cecc&quot;&gt;&lt;td&gt;Servo / control surface fault&lt;/td&gt;&lt;td&gt;Feedback mismatch (if measured)&lt;/td&gt;&lt;td&gt;Emergency&lt;/td&gt;&lt;td&gt;no&lt;/td&gt;&lt;td&gt;–&lt;/td&gt;&lt;td&gt;EMERGENCY → EMERGENCY_LAND; pilot takeover advised&lt;/td&gt;&lt;/tr&gt;&lt;tr style=&quot;background:#f5f5f5&quot;&gt;&lt;td&gt;Watchdog timeout / pilot switch&lt;/td&gt;&lt;td&gt;Teensy watchdog, or RC mode switch&lt;/td&gt;&lt;td&gt;(hardware)&lt;/td&gt;&lt;td&gt;–&lt;/td&gt;&lt;td&gt;–&lt;/td&gt;&lt;td&gt;MANUAL via servo mux, outside both FSMs&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;" vertex="1">
+          <mxGeometry height="500" width="1100" x="40" y="80" as="geometry" />
+        </mxCell>
+        <mxCell id="params" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=11;arcSize=4;" value="&lt;b&gt;PARAMETERS&lt;/b&gt; (starting values, tune in flight tests)&lt;br&gt;debounce_ms = 200 ms (fault must persist before it counts)&lt;br&gt;t_rc = 3 s (RC loss before CRITICAL)&lt;br&gt;t_hold = 5 s (fault cleared before CRITICAL can recover)&lt;br&gt;t_loiter = 60 s (max LOITER waiting for recovery)&lt;br&gt;N_crit_max = 3 (CRITICAL entries per flight before it latches)&lt;br&gt;RC_REQUIRED = true (false for autonomous missions)&lt;br&gt;N_sat, H_max, battery reserves: set from airframe tests" vertex="1">
+          <mxGeometry height="150" width="520" x="40" y="450" as="geometry" />
+        </mxCell>
+        <mxCell id="rules" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#999999;align=left;verticalAlign=top;spacingLeft=8;spacingTop=4;fontSize=11;arcSize=4;" value="&lt;b&gt;HOW THE TABLE IS USED&lt;/b&gt;&lt;br&gt;• Each loop, evaluate every row&#39;s detection and debounce.&lt;br&gt;• System state = highest class among active faults (with RC escalation and recovery rules from page 1).&lt;br&gt;• Flight response for CRITICAL = the active critical fault&#39;s response; RTL wins over LOITER if both are active.&lt;br&gt;• Every fault set/clear is logged with a timestamp, so DEGRADED patterns show up in post-flight review." vertex="1">
+          <mxGeometry height="150" width="550" x="590" y="450" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
