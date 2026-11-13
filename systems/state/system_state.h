@@ -90,6 +90,8 @@ public:
     bool changed() const { return m_changed; }
     const SystemTransition &last_transition() const { return m_last_transition; }
 
+    uint8_t get_num_crit_entries() const { return m_crit_entries; }
+
 private:
     // The only way to change m_state.
     void transition(SystemState to, const char *reason, uint32_t now_ms);
