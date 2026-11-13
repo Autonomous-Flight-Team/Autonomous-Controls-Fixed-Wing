@@ -2,31 +2,6 @@
 
 // Transition rules: "GOOSE State Machines.drawio" (page 1).
 
-namespace
-{
-
-    bool is_armed_state(SystemState s)
-    {
-        switch (s)
-        {
-        case SystemState::kActive:
-        case SystemState::kDegraded:
-        case SystemState::kCritical:
-        case SystemState::kEmergency:
-            return true;
-        case SystemState::kBoot:
-        case SystemState::kPreflight:
-        case SystemState::kStandby:
-        case SystemState::kFaultGround:
-        case SystemState::kBench:
-        case SystemState::kInAirReset:
-            return false;
-        }
-        return false;
-    }
-
-} // namespace
-
 const char *to_string(SystemState s)
 {
     switch (s)
@@ -55,9 +30,29 @@ const char *to_string(SystemState s)
     return "UNKNOWN";
 }
 
+bool is_armed(SystemState s)
+{
+    switch (s)
+    {
+    case SystemState::kActive:
+    case SystemState::kDegraded:
+    case SystemState::kCritical:
+    case SystemState::kEmergency:
+        return true;
+    case SystemState::kBoot:
+    case SystemState::kPreflight:
+    case SystemState::kStandby:
+    case SystemState::kFaultGround:
+    case SystemState::kBench:
+    case SystemState::kInAirReset:
+        return false;
+    }
+    return false;
+}
+
 bool SystemStateFSM::is_armed() const
 {
-    return is_armed_state(m_state);
+    return ::is_armed(m_state);
 }
 
 void SystemStateFSM::transition(SystemState to, const char *reason, uint32_t now_ms)
@@ -70,7 +65,7 @@ void SystemStateFSM::transition(SystemState to, const char *reason, uint32_t now
     // Exit actions
     if (from == SystemState::kFaultGround)
         m_fault_latched = false;
-    if (is_armed_state(from) && !is_armed_state(to))
+    if (::is_armed(from) && !::is_armed(to))
         m_crit_entries = 0; // new flight on next arm
 
     // Entry actions

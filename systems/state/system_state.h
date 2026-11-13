@@ -25,6 +25,7 @@ enum class SystemState : uint8_t
 };
 
 const char *to_string(SystemState s); // for logs and serial debug
+bool is_armed(SystemState s);         // ACTIVE, DEGRADED, CRITICAL or EMERGENCY
 
 // Tunable values (page 3 of the drawio). Same for every flight.
 struct SystemParams
@@ -49,7 +50,7 @@ struct SystemInputs
     bool failsafe_failed = false;   // the failsafe can't hold
 
     // From the flight FSM
-    bool landed = false; // flight FSM is ON_GROUND or LANDED
+    bool landed = false; // flight FSM is on the ground below V1 (disarm allowed)
 
     // Commands (GCS or RC switch)
     bool arm_cmd = false;

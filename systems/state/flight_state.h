@@ -29,7 +29,7 @@ enum class FlightState : uint8_t
     kEmergencyLand = 22,   // best reachable site, straight ahead if low
 };
 
-const char* to_string(FlightState s);
+const char *to_string(FlightState s);
 
 // What happens when the mission ends.
 enum class EndAction : uint8_t
@@ -58,8 +58,8 @@ struct FlightInputs
     // From the system FSM and fault manager
     SystemState system_state = SystemState::kBoot;
     FaultResponse critical_response = FaultResponse::kNone; // response of the active CRITICAL/EMERGENCY fault
-    bool gps_ok = true;   // GPS usable (FAILSAFE_LOITER recovery)
-    bool motor_ok = true; // powered go-around possible
+    bool gps_ok = true;                                     // GPS usable (FAILSAFE_LOITER recovery)
+    bool motor_ok = true;                                   // powered go-around possible
 
     // Measurements (from the estimator)
     float airspeed_mps = 0.0f;
@@ -72,10 +72,10 @@ struct FlightInputs
     bool mission_done = false;
     bool target_alt_reached = false;
     bool over_landing_site = false;
-    bool on_final = false;           // on final, aligned
+    bool on_final = false; // on final, aligned
     bool touchdown = false;
-    bool go_around_needed = false;   // unstable approach or runway blocked
-    bool loiter_done = false;        // loiter time or mission item finished
+    bool go_around_needed = false; // unstable approach or runway blocked
+    bool loiter_done = false;      // loiter time or mission item finished
 
     // Commands (GCS or RC switch)
     bool takeoff_cmd = false;
@@ -111,7 +111,7 @@ public:
 
     FlightState state() const { return m_state; }
     bool is_airborne() const; // inside the AIRBORNE group (AIRBORNE overrides apply)
-    bool is_landed() const;   // ON_GROUND or LANDED: SystemInputs::landed
+    bool is_landed() const;   // on the ground below V1 (disarm allowed): SystemInputs::landed
     uint32_t state_entry_ms() const { return m_state_entry_ms; }
 
     // True on the loop where the state changed; last_transition() has the details.
@@ -127,9 +127,9 @@ private:
     FlightState m_state = FlightState::kOnGround;
     uint32_t m_state_entry_ms = 0; // when the current state was entered (t_takeoff_max)
 
-    uint8_t m_goaround_count = 0;  // go-arounds this landing (n_goaround_max)
-    bool m_rtl_latched = false;    // RTL stays RTL after the fault clears, until resume_cmd
-    bool m_prev_manual = false;    // manual_active last loop: detects pilot re-engaging
+    uint8_t m_goaround_count = 0; // go-arounds this landing (n_goaround_max)
+    bool m_rtl_latched = false;   // RTL stays RTL after the fault clears, until resume_cmd
+    bool m_prev_manual = false;   // manual_active last loop: detects pilot re-engaging
 
     bool m_changed = false;
     FlightTransition m_last_transition{};
