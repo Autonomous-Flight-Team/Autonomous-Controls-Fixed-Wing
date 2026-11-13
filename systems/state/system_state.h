@@ -26,7 +26,6 @@ enum class SystemState : uint8_t
 
 const char *to_string(SystemState s); // for logs and serial debug
 
-
 // Tunable values (page 3 of the drawio). Same for every flight.
 struct SystemParams
 {
@@ -36,6 +35,7 @@ struct SystemParams
 };
 
 // Everything the system FSM reads each loop. Filled in by the main loop.
+// Commands are one-loop pulses: the main loop edge-detects RC switches and GCS messages.
 struct SystemInputs
 {
     // Bring-up and checks
@@ -100,6 +100,7 @@ private:
 
     uint32_t m_fault_clear_ms = 0;     // when the CRITICAL fault last cleared (for t_hold)
     bool m_fault_clear_timing = false; // m_fault_clear_ms is valid
+    bool m_crit_recoverable = false;   // every critical fault this CRITICAL episode was recoverable
     uint8_t m_crit_entries = 0;        // CRITICAL entries this flight; reset on disarm
     bool m_fault_latched = false;      // FAULT_GROUND needs fault_clear_cmd to leave
 
