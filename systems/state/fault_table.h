@@ -74,37 +74,37 @@ inline constexpr FaultDef kFaultTable[] = {
     // id                           name                    class                     escalates to
     // recov  response
     {FaultId::kTelemetryLost, "TELEMETRY_LOST", FaultClass::kNonCritical, FaultClass::kNone, true,
-     FaultResponse::kNone},
-    {FaultId::kRedundantSensor, "REDUNDANT_SENSOR", FaultClass::kNonCritical, FaultClass::kNone,
-     true, FaultResponse::kNone},
-    {FaultId::kBaro, "BARO", FaultClass::kNonCritical, FaultClass::kNone, true,
-     FaultResponse::kNone},
-    {FaultId::kMag, "MAG", FaultClass::kNonCritical, FaultClass::kNone, true, FaultResponse::kNone},
-    {FaultId::kLoggingFailure, "LOGGING_FAILURE", FaultClass::kNonCritical, FaultClass::kNone, true,
-     FaultResponse::kNone},
-    {FaultId::kRcLost, "RC_LOST", FaultClass::kNonCritical, FaultClass::kCritical, true,
-     FaultResponse::kRtl},
-    {FaultId::kLoopOverrun, "LOOP_OVERRUN", FaultClass::kNonCritical, FaultClass::kEmergency, true,
-     FaultResponse::kEmergencyLand},
-    {FaultId::kGpsLost, "GPS_LOST", FaultClass::kCritical, FaultClass::kEmergency, true,
-     FaultResponse::kFailsafeLoiter},
-    {FaultId::kAirspeed, "AIRSPEED", FaultClass::kCritical, FaultClass::kNone, false,
-     FaultResponse::kRtl},
-    {FaultId::kGeofence, "GEOFENCE", FaultClass::kCritical, FaultClass::kNone, false,
-     FaultResponse::kRtl},
-    {FaultId::kBatteryLow, "BATTERY_LOW", FaultClass::kCritical, FaultClass::kNone, false,
-     FaultResponse::kRtl},
-    {FaultId::kInAirReset, "IN_AIR_RESET", FaultClass::kCritical, FaultClass::kNone, false,
-     FaultResponse::kNone},
-    {FaultId::kBatteryCritical, "BATTERY_CRITICAL", FaultClass::kEmergency, FaultClass::kNone,
-     false, FaultResponse::kEmergencyLand},
-    {FaultId::kImuLost, "IMU_LOST", FaultClass::kEmergency, FaultClass::kNone, false,
-     FaultResponse::kEmergencyLand},
-    {FaultId::kEstimatorDiverged, "ESTIMATOR_DIVERGED", FaultClass::kEmergency, FaultClass::kNone,
-     false, FaultResponse::kEmergencyLand},
-    {FaultId::kMotorEsc, "MOTOR_ESC", FaultClass::kEmergency, FaultClass::kNone, false,
-     FaultResponse::kEmergencyLand},
-    {FaultId::kServo, "SERVO", FaultClass::kEmergency, FaultClass::kNone, false,
+     FaultResponse::kNone}, {
+        FaultId::kRedundantSensor, "REDUNDANT_SENSOR", FaultClass::kNonCritical, FaultClass::kNone,
+     true, FaultResponse::kNone}, {
+        FaultId::kBaro, "BARO", FaultClass::kNonCritical, FaultClass::kNone, true,
+     FaultResponse::kNone}, {
+        FaultId::kMag, "MAG", FaultClass::kNonCritical, FaultClass::kNone, true, FaultResponse::kNone}, {
+        FaultId::kLoggingFailure, "LOGGING_FAILURE", FaultClass::kNonCritical, FaultClass::kNone, true,
+     FaultResponse::kNone}, {
+        FaultId::kRcLost, "RC_LOST", FaultClass::kNonCritical, FaultClass::kCritical, true,
+     FaultResponse::kRtl}, {
+        FaultId::kLoopOverrun, "LOOP_OVERRUN", FaultClass::kNonCritical, FaultClass::kEmergency, true,
+     FaultResponse::kEmergencyLand}, {
+        FaultId::kGpsLost, "GPS_LOST", FaultClass::kCritical, FaultClass::kEmergency, true,
+     FaultResponse::kFailsafeLoiter}, {
+        FaultId::kAirspeed, "AIRSPEED", FaultClass::kCritical, FaultClass::kNone, false,
+     FaultResponse::kRtl}, {
+        FaultId::kGeofence, "GEOFENCE", FaultClass::kCritical, FaultClass::kNone, false,
+     FaultResponse::kRtl}, {
+        FaultId::kBatteryLow, "BATTERY_LOW", FaultClass::kCritical, FaultClass::kNone, false,
+     FaultResponse::kRtl}, {
+        FaultId::kInAirReset, "IN_AIR_RESET", FaultClass::kCritical, FaultClass::kNone, false,
+     FaultResponse::kNone}, {
+        FaultId::kBatteryCritical, "BATTERY_CRITICAL", FaultClass::kEmergency, FaultClass::kNone,
+     false, FaultResponse::kEmergencyLand}, {
+        FaultId::kImuLost, "IMU_LOST", FaultClass::kEmergency, FaultClass::kNone, false,
+     FaultResponse::kEmergencyLand}, {
+        FaultId::kEstimatorDiverged, "ESTIMATOR_DIVERGED", FaultClass::kEmergency, FaultClass::kNone,
+     false, FaultResponse::kEmergencyLand}, {
+        FaultId::kMotorEsc, "MOTOR_ESC", FaultClass::kEmergency, FaultClass::kNone, false,
+     FaultResponse::kEmergencyLand}, {
+        FaultId::kServo, "SERVO", FaultClass::kEmergency, FaultClass::kNone, false,
      FaultResponse::kEmergencyLand},
 };
 

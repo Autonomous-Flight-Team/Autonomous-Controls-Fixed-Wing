@@ -175,8 +175,7 @@ void test_critical_latches_after_n_crit_max_entries() {
     Harness h;
     h.bring_up_and_arm();
     h.takeoff_to_cruise();
-    for (int i = 0; i < 3; ++i) // n_crit_max = 3
-    {
+    for (int i = 0; i < 3; ++i) { // n_crit_max = 3
         h.raise(FaultClass::kCritical, true, FaultResponse::kFailsafeLoiter);
         h.step();
         h.clear_faults();
@@ -385,8 +384,7 @@ void test_go_around_limit_commits_landing() {
     h.takeoff_to_cruise();
     h.fi.rtl_cmd = true;
     h.step();
-    for (int i = 0; i < 3; ++i) // n_goaround_max = 2
-    {
+    for (int i = 0; i < 3; ++i) { // n_goaround_max = 2
         h.fi.over_landing_site = true;
         h.step();
         h.fi.over_landing_site = false;
