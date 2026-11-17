@@ -55,7 +55,7 @@ Once per control loop, in this order:
 
 `test/test_state/test_state_machines.cpp` runs both FSMs together, wired as in Usage, at 50 Hz simulated time. It covers bring-up, arming, CRITICAL recovery and latching, takeoff aborts, go-arounds, failsafes, emergency landing and MANUAL handback.
 
-```
+```bash
 pio test -e native -f test_state
 ```
 
