@@ -28,7 +28,7 @@ enum class FaultId : uint8_t {
     kRedundantSensor = 1, // one of N sensors invalid or out of agreement
     kBaro = 2,            // no samples, stuck, or disagrees with GPS altitude
     kMag = 3,             // no samples, stuck, or disagrees with GPS course
-    kLoggingFailure = 4,  // SD card full or write error; blocks arming on ground
+    kLoggingFailure = 4,  // SD card full or write error; blocks arming via preflight_ok = false
     kRcLost = 5,          // no valid RC frames or receiver failsafe flag
     kLoopOverrun = 6,     // control loop missed its deadline
 

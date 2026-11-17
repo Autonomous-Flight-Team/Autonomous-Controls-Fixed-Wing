@@ -17,6 +17,7 @@ The design is `designs/GOOSE State Machines.drawio` (page 1 system, page 2 fligh
 - No heap, no virtual functions, no Arduino headers in this folder, so it builds on the `native` env for tests.
 - Enum values and `FaultId` bit positions are written to logs and telemetry: never renumber, only add.
 - `FaultId` value = bit index in `FaultMask` (one `uint32_t` holds every active fault).
+- The fault manager clears the `kInAirReset` bit when the operator sends `fault_clear_cmd`; otherwise PREFLIGHT drops straight back to FAULT_GROUND.
 - Time-based fault escalation (RC after `t_rc`, GPS after `t_loiter`, loop overrun count) belongs to the fault manager, not the FSMs.
 - Elapsed times use unsigned subtraction (`now_ms - start`), so they stay correct when `millis()` wraps.
 - `is_armed(SystemState)` is a free function shared by both FSMs. Inside `SystemStateFSM` call it as `::is_armed(...)`, because the member `is_armed()` hides it.
@@ -31,9 +32,11 @@ The design is `designs/GOOSE State Machines.drawio` (page 1 system, page 2 fligh
 ### Flight FSM rules worth knowing
 
 - Each `update()` runs in this order: MANUAL check → AIRBORNE overrides (system EMERGENCY/CRITICAL) → normal transitions. At most one transition per loop.
-- **MANUAL** freezes the FSM. When the pilot hands back, it restarts from what the plane is doing: LOITER if airborne (FAILSAFE_LOITER without GPS), ON_GROUND if not.
+- **MANUAL** freezes the FSM. When the pilot hands back, it restarts from what the plane is doing: LOITER if airborne (FAILSAFE_LOITER without GPS), ON_GROUND if not. After a manual landing the FSM is still frozen in an airborne state, so disarm is ignored: hand back to the autopilot first (it goes to ON_GROUND), then disarm.
 - **ROTATE is committed:** faults don't abort past V1; overrides apply once in CLIMB.
 - **LANDING is exempt** from the EMERGENCY_LAND and FAILSAFE_LOITER overrides: finishing the landing beats turning away. No go-arounds during EMERGENCY.
+- **No GPS beats the fault's response:** in CRITICAL, `!gps_ok` sends the plane to FAILSAFE_LOITER whatever `critical_response` says. FAILSAFE_LOITER leaves on `gps_ok` even if the GPS fault is still debouncing or in `t_hold`.
+- **Go-arounds are counted per flight** (reset at TAKEOFF_ROLL), not per approach.
 - **RTL is sticky:** it leaves only for DESCENT, or on `resume_cmd` once the system is out of CRITICAL.
 
 ## Usage
@@ -49,7 +52,7 @@ Once per control loop, in this order:
 
 **Commands are one-loop pulses.** The main loop edge-detects RC switches and GCS messages and sets a command for exactly one loop. A held level (e.g. an arm switch left on) would re-arm right after a disarm.
 
-**Home capture:** arm is the STANDBY → ACTIVE/DEGRADED transition. Latch home position when `changed()` and `last_transition().from == SystemState::kStandby`.
+**Home capture:** arm is the STANDBY → ACTIVE/DEGRADED transition. Latch home position when `changed()`, `last_transition().from == SystemState::kStandby` and `is_armed()`. Checking `from` alone also fires on STANDBY → BENCH and STANDBY → PREFLIGHT.
 
 ## Tests
 

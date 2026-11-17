@@ -45,7 +45,7 @@ struct FlightParams {
     float climb_rate_min_mps = 0.0f;  // climb rate that confirms liftoff
     float v_stopped_mps = 0.5f;       // groundspeed counted as "stopped"
     uint32_t t_takeoff_max_ms = 8000; // PLACEHOLDER: ROTATE without liftoff -> rejected takeoff
-    uint8_t n_goaround_max = 2;       // go-arounds before the landing is committed
+    uint8_t n_goaround_max = 2;       // go-arounds per flight before the landing is committed
     EndAction end_action = EndAction::kRtl;
 };
 
@@ -121,7 +121,7 @@ class FlightStateFSM {
     FlightState m_state = FlightState::kOnGround;
     uint32_t m_state_entry_ms = 0; // when the current state was entered (t_takeoff_max)
 
-    uint8_t m_goaround_count = 0; // go-arounds this landing (n_goaround_max)
+    uint8_t m_goaround_count = 0; // go-arounds this flight (n_goaround_max); reset at TAKEOFF_ROLL
     bool m_rtl_latched = false;   // RTL stays RTL after the fault clears, until resume_cmd
     bool m_prev_manual = false;   // manual_active last loop: detects pilot re-engaging
 

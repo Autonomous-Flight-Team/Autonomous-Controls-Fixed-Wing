@@ -340,6 +340,39 @@ void test_gps_lost_failsafe_loiter_and_recovery() {
     ASSERT_FLT(h, FlightState::kCruise);
 }
 
+void test_gps_recovered_during_t_hold_does_not_oscillate() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.raise(FaultClass::kCritical, true, FaultResponse::kFailsafeLoiter);
+    h.fi.gps_ok = false;
+    h.step();
+    ASSERT_FLT(h, FlightState::kFailsafeLoiter);
+
+    // GPS back, fault cleared, but the response is still reported (debounce / t_hold).
+    h.si.highest_fault = FaultClass::kNone;
+    h.fi.gps_ok = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kCruise);
+    h.run_ms(200);
+    ASSERT_FLT(h, FlightState::kCruise);
+    TEST_ASSERT_FALSE(h.fl.changed());
+}
+
+void test_no_gps_overrides_rtl_response() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.raise(FaultClass::kCritical, false, FaultResponse::kRtl); // e.g. battery low...
+    h.fi.gps_ok = false;                                        // ...with GPS also gone
+    h.step();
+    ASSERT_FLT(h, FlightState::kFailsafeLoiter);
+
+    h.fi.gps_ok = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kRtl);
+}
+
 void test_rtl_failsafe_is_sticky() {
     Harness h;
     h.bring_up_and_arm();
@@ -406,6 +439,8 @@ int main(int, char**) {
     RUN_TEST(test_disarm_ignored_after_v1);
     RUN_TEST(test_no_liftoff_rejects_takeoff);
     RUN_TEST(test_gps_lost_failsafe_loiter_and_recovery);
+    RUN_TEST(test_gps_recovered_during_t_hold_does_not_oscillate);
+    RUN_TEST(test_no_gps_overrides_rtl_response);
     RUN_TEST(test_rtl_failsafe_is_sticky);
     RUN_TEST(test_emergency_in_cruise_lands);
     RUN_TEST(test_manual_freezes_then_reengages_to_loiter);

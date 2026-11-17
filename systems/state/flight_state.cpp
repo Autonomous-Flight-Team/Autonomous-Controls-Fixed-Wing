@@ -155,28 +155,34 @@ void FlightStateFSM::update(const FlightInputs& in, uint32_t now_ms) {
             if (m_state != FlightState::kEmergencyLand && m_state != FlightState::kLanding)
                 transition(FlightState::kEmergencyLand, "system EMERGENCY", now_ms);
         } else if (sys == SystemState::kCritical) {
-            switch (in.critical_response) {
-            case FaultResponse::kFailsafeLoiter:
-                // GPS lost: can't navigate. Everywhere except short final.
+            if (!in.gps_ok) {
+                // No GPS: can't navigate, whatever the active fault's response is (an RTL
+                // without GPS can't fly home). Everywhere except short final.
                 if (m_state == FlightState::kClimb || m_state == FlightState::kCruise ||
                     m_state == FlightState::kLoiter || m_state == FlightState::kRtl ||
                     m_state == FlightState::kDescent)
-                    transition(FlightState::kFailsafeLoiter, "critical: GPS lost", now_ms);
-                break;
-            case FaultResponse::kRtl:
-                // Already heading home (RTL, DESCENT, LANDING): nothing to change.
-                if (m_state == FlightState::kClimb || m_state == FlightState::kCruise ||
-                    m_state == FlightState::kLoiter ||
-                    (m_state == FlightState::kFailsafeLoiter && in.gps_ok))
-                    transition(FlightState::kRtl, "critical: RTL failsafe", now_ms);
-                break;
-            case FaultResponse::kEmergencyLand:
-                // Emergency-class faults put the system in EMERGENCY; handled defensively.
-                if (m_state != FlightState::kEmergencyLand && m_state != FlightState::kLanding)
-                    transition(FlightState::kEmergencyLand, "critical: emergency land", now_ms);
-                break;
-            case FaultResponse::kNone:
-                break;
+                    transition(FlightState::kFailsafeLoiter, "critical: no GPS", now_ms);
+            } else {
+                switch (in.critical_response) {
+                case FaultResponse::kFailsafeLoiter:
+                    // GPS is back but the fault hasn't cleared yet (debounce / t_hold).
+                    // FAILSAFE_LOITER exits on gps_ok in the normal transitions; re-entering
+                    // here would bounce between FAILSAFE_LOITER and CRUISE every loop.
+                    break;
+                case FaultResponse::kRtl:
+                    // Already heading home (RTL, DESCENT, LANDING): nothing to change.
+                    if (m_state == FlightState::kClimb || m_state == FlightState::kCruise ||
+                        m_state == FlightState::kLoiter || m_state == FlightState::kFailsafeLoiter)
+                        transition(FlightState::kRtl, "critical: RTL failsafe", now_ms);
+                    break;
+                case FaultResponse::kEmergencyLand:
+                    // Emergency-class faults put the system in EMERGENCY; handled defensively.
+                    if (m_state != FlightState::kEmergencyLand && m_state != FlightState::kLanding)
+                        transition(FlightState::kEmergencyLand, "critical: emergency land", now_ms);
+                    break;
+                case FaultResponse::kNone:
+                    break;
+                }
             }
         }
         if (m_changed)

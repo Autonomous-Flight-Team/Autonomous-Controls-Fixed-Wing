@@ -1,6 +1,7 @@
 #include "fault_table.h"
 
-// to_string(FaultId) is inline in the header: it reads the name from kFaultTable.
+// No default case: -Wswitch flags any enum value added without a string here.
+// The return after each switch only covers out-of-range values (e.g. a bad cast from a log byte).
 
 const char* to_string(FaultClass c) {
     switch (c) {
@@ -13,5 +14,19 @@ const char* to_string(FaultClass c) {
     case FaultClass::kEmergency:
         return "EMERGENCY";
     }
-    return "UNKNOWN";
+    return "UNKNOWN_CLASS";
+}
+
+const char* to_string(FaultResponse r) {
+    switch (r) {
+    case FaultResponse::kNone:
+        return "NONE";
+    case FaultResponse::kFailsafeLoiter:
+        return "FAILSAFE_LOITER";
+    case FaultResponse::kRtl:
+        return "RTL";
+    case FaultResponse::kEmergencyLand:
+        return "EMERGENCY_LAND";
+    }
+    return "UNKNOWN_RESPONSE";
 }
