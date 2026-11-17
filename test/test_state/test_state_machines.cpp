@@ -17,6 +17,11 @@ struct Harness {
     FlightInputs fi;
     uint32_t t = 0;
 
+    Harness() = default;
+    explicit Harness(const SystemParams& sp, const FlightParams& fp = FlightParams{})
+        : sys(sp), fl(fp) {}
+    explicit Harness(const FlightParams& fp) : fl(fp) {}
+
     // One control loop. Commands are one-loop pulses, so they are cleared after each step.
     void step() {
         t += kLoopMs;
@@ -77,6 +82,16 @@ struct Harness {
         si.disarm_cmd = true;
         step();
         step();
+    }
+
+    // RTL -> DESCENT -> LANDING (on final)
+    void fly_to_final() {
+        fi.over_landing_site = true;
+        step();
+        fi.over_landing_site = false;
+        fi.on_final = true;
+        step();
+        fi.on_final = false;
     }
 
     void raise(FaultClass cls, bool recoverable, FaultResponse response) {
@@ -202,6 +217,133 @@ void test_in_air_reset_needs_acknowledgement() {
     h.si.fault_clear_cmd = true;
     h.step();
     ASSERT_SYS(h, SystemState::kPreflight);
+}
+
+void test_standby_health_recheck() {
+    Harness h;
+    h.si.boot_finished = h.si.preflight_ok = true;
+    h.step();
+    h.step();
+    ASSERT_SYS(h, SystemState::kStandby);
+    h.si.preflight_ok = false;
+    h.step();
+    ASSERT_SYS(h, SystemState::kPreflight);
+    h.si.arm_cmd = true; // no arming from PREFLIGHT
+    h.step();
+    ASSERT_SYS(h, SystemState::kPreflight);
+}
+
+void test_preflight_fault_clears_on_its_own() {
+    Harness h;
+    h.si.boot_finished = true;
+    h.step(); // BOOT -> PREFLIGHT
+    h.raise(FaultClass::kCritical, true, FaultResponse::kNone);
+    h.step();
+    ASSERT_SYS(h, SystemState::kFaultGround);
+    h.clear_faults();
+    h.step();
+    ASSERT_SYS(h, SystemState::kPreflight); // not latched: no fault_clear_cmd needed
+}
+
+void test_bench_round_trip() {
+    Harness h;
+    h.si.boot_finished = h.si.preflight_ok = true;
+    h.step();
+    h.step();
+    h.si.bench_cmd = true;
+    h.step();
+    ASSERT_SYS(h, SystemState::kBench);
+    h.si.arm_cmd = true;
+    h.step();
+    ASSERT_SYS(h, SystemState::kBench); // no arming from BENCH
+    h.si.exit_bench_cmd = true;
+    h.step();
+    ASSERT_SYS(h, SystemState::kPreflight); // re-check after bench tests
+    h.step();
+    ASSERT_SYS(h, SystemState::kStandby);
+}
+
+void test_disarm_with_critical_fault_on_ground_latches() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.raise(FaultClass::kCritical, true, FaultResponse::kNone);
+    h.si.disarm_cmd = true;
+    h.step();
+    ASSERT_SYS(h, SystemState::kFaultGround);
+    h.clear_faults();
+    h.run_ms(1000);
+    ASSERT_SYS(h, SystemState::kFaultGround);
+    h.si.fault_clear_cmd = true;
+    h.step();
+    ASSERT_SYS(h, SystemState::kPreflight);
+}
+
+void test_degraded_returns_to_active() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.raise(FaultClass::kNonCritical, true, FaultResponse::kNone);
+    h.step();
+    ASSERT_SYS(h, SystemState::kDegraded);
+    ASSERT_FLT(h, FlightState::kCruise); // non-critical: no flight effect
+    h.clear_faults();
+    h.step();
+    ASSERT_SYS(h, SystemState::kActive);
+}
+
+void test_critical_escalates_to_emergency_on_emergency_fault() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.raise(FaultClass::kCritical, true, FaultResponse::kFailsafeLoiter);
+    h.fi.gps_ok = false;
+    h.step();
+    ASSERT_SYS(h, SystemState::kCritical);
+    ASSERT_FLT(h, FlightState::kFailsafeLoiter);
+    h.raise(FaultClass::kEmergency, false, FaultResponse::kEmergencyLand); // GPS past t_loiter
+    h.step();
+    ASSERT_SYS(h, SystemState::kEmergency);
+    ASSERT_FLT(h, FlightState::kEmergencyLand);
+}
+
+void test_emergency_holds_in_air_and_latches_on_ground() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.raise(FaultClass::kEmergency, false, FaultResponse::kEmergencyLand);
+    h.step();
+    h.clear_faults();
+    h.run_ms(10000);
+    ASSERT_SYS(h, SystemState::kEmergency); // never recovers in the air
+
+    h.fi.touchdown = true;
+    h.fi.agl_m = 0.0f;
+    h.step();
+    h.fi.touchdown = false;
+    h.fi.airspeed_mps = h.fi.groundspeed_mps = 0.0f;
+    h.si.disarm_cmd = true;
+    h.step();
+    ASSERT_SYS(h, SystemState::kFaultGround);
+    ASSERT_FLT(h, FlightState::kOnGround);
+    h.run_ms(1000);
+    ASSERT_SYS(h, SystemState::kFaultGround); // latched
+    h.si.fault_clear_cmd = true;
+    h.step();
+    ASSERT_SYS(h, SystemState::kPreflight);
+}
+
+void test_t_hold_across_millis_wrap() {
+    Harness h;
+    h.t = UINT32_MAX - 2000; // wraps during t_hold
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.raise(FaultClass::kCritical, true, FaultResponse::kRtl);
+    h.step();
+    h.clear_faults();
+    h.run_ms(4900);
+    ASSERT_SYS(h, SystemState::kCritical);
+    h.run_ms(300);
+    ASSERT_SYS(h, SystemState::kActive);
 }
 
 // ---------------- Flight FSM ----------------
@@ -416,6 +558,239 @@ void test_manual_freezes_then_reengages_to_loiter() {
     ASSERT_FLT(h, FlightState::kLoiter);
 }
 
+void test_takeoff_refused_when_degraded() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.raise(FaultClass::kNonCritical, true, FaultResponse::kNone);
+    h.step();
+    ASSERT_SYS(h, SystemState::kDegraded);
+    h.fi.takeoff_cmd = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kOnGround); // takeoff needs ACTIVE
+}
+
+void test_non_critical_fault_on_takeoff_roll_continues() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.fi.takeoff_cmd = true;
+    h.step();
+    h.fi.airspeed_mps = h.fi.groundspeed_mps = 6.0f;
+    h.raise(FaultClass::kNonCritical, true, FaultResponse::kNone);
+    h.step();
+    ASSERT_SYS(h, SystemState::kDegraded);
+    ASSERT_FLT(h, FlightState::kTakeoffRoll);
+    h.fi.airspeed_mps = 13.0f;
+    h.step();
+    ASSERT_FLT(h, FlightState::kRotate);
+}
+
+void test_rotate_timeout_across_millis_wrap() {
+    Harness h;
+    h.t = UINT32_MAX - 3000; // wraps while in ROTATE
+    h.bring_up_and_arm();
+    h.fi.takeoff_cmd = true;
+    h.step();
+    h.fi.airspeed_mps = h.fi.groundspeed_mps = 13.0f;
+    h.step();
+    ASSERT_FLT(h, FlightState::kRotate);
+    h.run_ms(4000);
+    ASSERT_FLT(h, FlightState::kRotate); // no early timeout at the wrap
+    h.run_ms(4100);
+    ASSERT_FLT(h, FlightState::kRejectedTakeoff);
+}
+
+void test_emergency_on_final_keeps_landing() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.fi.rtl_cmd = true;
+    h.step();
+    h.fly_to_final();
+    ASSERT_FLT(h, FlightState::kLanding);
+
+    h.raise(FaultClass::kEmergency, false, FaultResponse::kEmergencyLand);
+    h.fi.go_around_needed = true;
+    h.step();
+    ASSERT_SYS(h, SystemState::kEmergency);
+    ASSERT_FLT(h, FlightState::kLanding); // finish the landing, no go-around
+    h.fi.go_around_needed = false;
+    h.fi.touchdown = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kLanded);
+}
+
+void test_emergency_in_descent_lands() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.fi.rtl_cmd = true;
+    h.step();
+    h.fi.over_landing_site = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kDescent);
+    h.raise(FaultClass::kEmergency, false, FaultResponse::kEmergencyLand);
+    h.step();
+    ASSERT_FLT(h, FlightState::kEmergencyLand);
+}
+
+void test_gps_lost_on_final_keeps_landing() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.fi.rtl_cmd = true;
+    h.step();
+    h.fly_to_final();
+    h.raise(FaultClass::kCritical, true, FaultResponse::kFailsafeLoiter);
+    h.fi.gps_ok = false;
+    h.step();
+    ASSERT_SYS(h, SystemState::kCritical);
+    ASSERT_FLT(h, FlightState::kLanding);
+}
+
+void test_rtl_waits_for_resume_after_critical_clears() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.raise(FaultClass::kCritical, true, FaultResponse::kRtl); // RC lost past t_rc
+    h.step();
+    ASSERT_FLT(h, FlightState::kRtl);
+    h.clear_faults();
+    h.run_ms(5200);
+    ASSERT_SYS(h, SystemState::kActive);
+    ASSERT_FLT(h, FlightState::kRtl); // sticky without resume_cmd
+    h.fi.resume_cmd = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kCruise);
+}
+
+void test_loiter_cmd_resume_and_loiter_done() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.fi.loiter_cmd = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kLoiter);
+    h.run_ms(1000);
+    ASSERT_FLT(h, FlightState::kLoiter);
+    h.fi.resume_cmd = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kCruise);
+
+    h.fi.loiter_cmd = true;
+    h.step();
+    h.fi.loiter_done = true;
+    h.step();
+    h.fi.loiter_done = false;
+    ASSERT_FLT(h, FlightState::kCruise);
+
+    h.fi.loiter_cmd = true;
+    h.step();
+    h.fi.rtl_cmd = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kRtl);
+}
+
+void test_mission_end_loiter_then_rtl() {
+    FlightParams fp;
+    fp.end_action = EndAction::kLoiter;
+    Harness h(fp);
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.fi.mission_done = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kLoiter);
+    h.fi.loiter_done = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kRtl);
+}
+
+void test_invalid_mission_holds_in_loiter() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.fi.mission_valid = false;
+    h.step();
+    ASSERT_FLT(h, FlightState::kLoiter);
+    h.fi.resume_cmd = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kLoiter); // nothing to resume
+    h.fi.mission_valid = true;
+    h.fi.resume_cmd = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kCruise);
+}
+
+void test_latched_critical_resumes_mission_when_gps_returns() {
+    // Design choice: a latched CRITICAL with no active fault keeps flying the mission.
+    SystemParams sp;
+    sp.n_crit_max = 1; // first CRITICAL entry latches
+    Harness h(sp);
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.raise(FaultClass::kCritical, true, FaultResponse::kFailsafeLoiter);
+    h.fi.gps_ok = false;
+    h.step();
+    ASSERT_FLT(h, FlightState::kFailsafeLoiter);
+
+    h.clear_faults();
+    h.fi.gps_ok = true;
+    h.step();
+    ASSERT_FLT(h, FlightState::kCruise);
+    h.run_ms(10000);
+    ASSERT_SYS(h, SystemState::kCritical); // latched until landing
+    ASSERT_FLT(h, FlightState::kCruise);
+    h.fi.rtl_cmd = true; // operator can still bring it home
+    h.step();
+    ASSERT_FLT(h, FlightState::kRtl);
+}
+
+void test_manual_handback_on_ground() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.fi.takeoff_cmd = true;
+    h.step();
+    h.fi.airspeed_mps = h.fi.groundspeed_mps = 6.0f;
+    h.fi.manual_active = true;
+    h.run_ms(500);
+    ASSERT_FLT(h, FlightState::kTakeoffRoll);        // frozen
+    h.fi.airspeed_mps = h.fi.groundspeed_mps = 0.0f; // pilot stopped the roll
+    h.fi.manual_active = false;
+    h.step();
+    ASSERT_FLT(h, FlightState::kOnGround);
+}
+
+void test_manual_handback_without_gps() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.fi.manual_active = true;
+    h.run_ms(500);
+    h.fi.gps_ok = false;
+    h.fi.manual_active = false;
+    h.step();
+    ASSERT_FLT(h, FlightState::kFailsafeLoiter);
+}
+
+void test_manual_landing_needs_handback_to_disarm() {
+    Harness h;
+    h.bring_up_and_arm();
+    h.takeoff_to_cruise();
+    h.fi.manual_active = true;
+    h.step();
+    h.fi.agl_m = 0.0f; // pilot lands
+    h.fi.airspeed_mps = h.fi.groundspeed_mps = 0.0f;
+    h.run_ms(500);
+    h.si.disarm_cmd = true;
+    h.step();
+    TEST_ASSERT_TRUE(h.sys.is_armed()); // FSM frozen in CRUISE: not landed
+    h.fi.manual_active = false;
+    h.step();
+    ASSERT_FLT(h, FlightState::kOnGround);
+    h.si.disarm_cmd = true;
+    h.step();
+    ASSERT_SYS(h, SystemState::kStandby);
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
 
@@ -429,6 +804,14 @@ int main(int, char**) {
     RUN_TEST(test_failsafe_failed_escalates_to_emergency);
     RUN_TEST(test_disarm_ignored_in_flight);
     RUN_TEST(test_in_air_reset_needs_acknowledgement);
+    RUN_TEST(test_standby_health_recheck);
+    RUN_TEST(test_preflight_fault_clears_on_its_own);
+    RUN_TEST(test_bench_round_trip);
+    RUN_TEST(test_disarm_with_critical_fault_on_ground_latches);
+    RUN_TEST(test_degraded_returns_to_active);
+    RUN_TEST(test_critical_escalates_to_emergency_on_emergency_fault);
+    RUN_TEST(test_emergency_holds_in_air_and_latches_on_ground);
+    RUN_TEST(test_t_hold_across_millis_wrap);
 
     // Flight FSM
     RUN_TEST(test_normal_flight_with_go_around);
@@ -444,6 +827,20 @@ int main(int, char**) {
     RUN_TEST(test_rtl_failsafe_is_sticky);
     RUN_TEST(test_emergency_in_cruise_lands);
     RUN_TEST(test_manual_freezes_then_reengages_to_loiter);
+    RUN_TEST(test_takeoff_refused_when_degraded);
+    RUN_TEST(test_non_critical_fault_on_takeoff_roll_continues);
+    RUN_TEST(test_rotate_timeout_across_millis_wrap);
+    RUN_TEST(test_emergency_on_final_keeps_landing);
+    RUN_TEST(test_emergency_in_descent_lands);
+    RUN_TEST(test_gps_lost_on_final_keeps_landing);
+    RUN_TEST(test_rtl_waits_for_resume_after_critical_clears);
+    RUN_TEST(test_loiter_cmd_resume_and_loiter_done);
+    RUN_TEST(test_mission_end_loiter_then_rtl);
+    RUN_TEST(test_invalid_mission_holds_in_loiter);
+    RUN_TEST(test_latched_critical_resumes_mission_when_gps_returns);
+    RUN_TEST(test_manual_handback_on_ground);
+    RUN_TEST(test_manual_handback_without_gps);
+    RUN_TEST(test_manual_landing_needs_handback_to_disarm);
 
     return UNITY_END();
 }

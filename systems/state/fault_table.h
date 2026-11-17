@@ -13,6 +13,7 @@ enum class FaultClass : uint8_t {
 };
 
 // What the flight FSM does when this fault is the active CRITICAL/EMERGENCY one.
+// Order matters: with several critical faults, the fault manager reports the highest.
 enum class FaultResponse : uint8_t {
     kNone = 0, // log only
     kFailsafeLoiter = 1,
@@ -64,7 +65,8 @@ struct FaultDef {
     FaultResponse response;  // flight response at its CRITICAL/EMERGENCY class
 };
 
-// Escalation triggers (fault manager):
+// Escalation triggers (fault_manager.cpp; a static_assert there keeps them in sync with
+// escalates_to). Timers count from when the fault is raised, after debounce.
 //   kRcLost:      lost > t_rc, only if RC_REQUIRED
 //   kLoopOverrun: N_overrun_max misses in a row
 //   kGpsLost:     still lost after t_loiter
