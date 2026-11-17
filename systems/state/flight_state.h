@@ -1,14 +1,13 @@
 #ifndef FLIGHT_STATE_H_
 #define FLIGHT_STATE_H_
 
-#include <cstdint>
 #include "fault_table.h"
 #include "system_state.h"
+#include <cstdint>
 
 // Transition rules: flight_state.cpp and "GOOSE State Machines.drawio" (page 2).
 // Values are written to logs and telemetry: never renumber, only add.
-enum class FlightState : uint8_t
-{
+enum class FlightState : uint8_t {
     // Ground
     kOnGround = 0,    // motor locked unless system is ACTIVE; must stay 0
     kTakeoffRoll = 1, // full throttle, track centerline
@@ -29,19 +28,17 @@ enum class FlightState : uint8_t
     kEmergencyLand = 22,   // best reachable site, straight ahead if low
 };
 
-const char *to_string(FlightState s);
+const char* to_string(FlightState s);
 
 // What happens when the mission ends.
-enum class EndAction : uint8_t
-{
+enum class EndAction : uint8_t {
     kRtl = 0,
     kLoiter = 1,
 };
 
 // Tunable values (page 3 of the drawio). Same for every flight.
 // PLACEHOLDER airframe values: set from Ranger 1800 ground and flight tests.
-struct FlightParams
-{
+struct FlightParams {
     // _m = meter, _ms = milliseconds, _mps - meters/second
     float v1_mps = 12.0f;             // PLACEHOLDER: committed-to-takeoff airspeed
     float h_min_agl_m = 5.0f;         // PLACEHOLDER: AGL (Above Ground Level) that confirms liftoff
@@ -53,13 +50,13 @@ struct FlightParams
 };
 
 // Everything the flight FSM reads each loop. Filled in by the main loop.
-struct FlightInputs
-{
+struct FlightInputs {
     // From the system FSM and fault manager
     SystemState system_state = SystemState::kBoot;
-    FaultResponse critical_response = FaultResponse::kNone; // response of the active CRITICAL/EMERGENCY fault
-    bool gps_ok = true;                                     // GPS usable (FAILSAFE_LOITER recovery)
-    bool motor_ok = true;                                   // powered go-around possible
+    FaultResponse critical_response =
+        FaultResponse::kNone; // response of the active CRITICAL/EMERGENCY fault
+    bool gps_ok = true;       // GPS usable (FAILSAFE_LOITER recovery)
+    bool motor_ok = true;     // powered go-around possible
 
     // Measurements (from the estimator)
     float airspeed_mps = 0.0f;
@@ -88,26 +85,23 @@ struct FlightInputs
 };
 
 // One state change, for logging.
-struct FlightTransition
-{
+struct FlightTransition {
     FlightState from = FlightState::kOnGround;
     FlightState to = FlightState::kOnGround;
-    const char *reason = ""; // string literal, never freed
+    const char* reason = ""; // string literal, never freed
     uint32_t time_ms = 0;
 };
 
-class FlightStateFSM
-{
-public:
-    explicit FlightStateFSM(const FlightParams &params = FlightParams{})
-        : m_params(params) {}
+class FlightStateFSM {
+  public:
+    explicit FlightStateFSM(const FlightParams& params = FlightParams{}) : m_params(params) {}
 
     // One state object per system: no copies.
-    FlightStateFSM(const FlightStateFSM &) = delete;
-    FlightStateFSM &operator=(const FlightStateFSM &) = delete;
+    FlightStateFSM(const FlightStateFSM&) = delete;
+    FlightStateFSM& operator=(const FlightStateFSM&) = delete;
 
     // Call once per control loop, after the system FSM's update().
-    void update(const FlightInputs &in, uint32_t now_ms);
+    void update(const FlightInputs& in, uint32_t now_ms);
 
     FlightState state() const { return m_state; }
     bool is_airborne() const; // inside the AIRBORNE group (AIRBORNE overrides apply)
@@ -116,11 +110,11 @@ public:
 
     // True on the loop where the state changed; last_transition() has the details.
     bool changed() const { return m_changed; }
-    const FlightTransition &last_transition() const { return m_last_transition; }
+    const FlightTransition& last_transition() const { return m_last_transition; }
 
-private:
+  private:
     // The only way to change m_state.
-    void transition(FlightState to, const char *reason, uint32_t now_ms);
+    void transition(FlightState to, const char* reason, uint32_t now_ms);
 
     FlightParams m_params;
 

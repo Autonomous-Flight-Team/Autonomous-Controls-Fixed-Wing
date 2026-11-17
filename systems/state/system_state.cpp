@@ -2,10 +2,8 @@
 
 // Transition rules: "GOOSE State Machines.drawio" (page 1).
 
-const char *to_string(SystemState s)
-{
-    switch (s)
-    {
+const char* to_string(SystemState s) {
+    switch (s) {
     case SystemState::kBoot:
         return "BOOT";
     case SystemState::kPreflight:
@@ -30,10 +28,8 @@ const char *to_string(SystemState s)
     return "UNKNOWN";
 }
 
-bool is_armed(SystemState s)
-{
-    switch (s)
-    {
+bool is_armed(SystemState s) {
+    switch (s) {
     case SystemState::kActive:
     case SystemState::kDegraded:
     case SystemState::kCritical:
@@ -50,13 +46,9 @@ bool is_armed(SystemState s)
     return false;
 }
 
-bool SystemStateFSM::is_armed() const
-{
-    return ::is_armed(m_state);
-}
+bool SystemStateFSM::is_armed() const { return ::is_armed(m_state); }
 
-void SystemStateFSM::transition(SystemState to, const char *reason, uint32_t now_ms)
-{
+void SystemStateFSM::transition(SystemState to, const char* reason, uint32_t now_ms) {
     if (to == m_state)
         return;
 
@@ -69,8 +61,7 @@ void SystemStateFSM::transition(SystemState to, const char *reason, uint32_t now
         m_crit_entries = 0; // new flight on next arm
 
     // Entry actions
-    if (to == SystemState::kCritical)
-    {
+    if (to == SystemState::kCritical) {
         if (m_crit_entries < UINT8_MAX)
             ++m_crit_entries;
         m_fault_clear_timing = false;
@@ -86,8 +77,7 @@ void SystemStateFSM::transition(SystemState to, const char *reason, uint32_t now
     m_changed = true;
 }
 
-void SystemStateFSM::update(const SystemInputs &in, uint32_t now_ms)
-{
+void SystemStateFSM::update(const SystemInputs& in, uint32_t now_ms) {
     m_changed = false;
 
     const FaultClass f = in.highest_fault;
@@ -95,87 +85,61 @@ void SystemStateFSM::update(const SystemInputs &in, uint32_t now_ms)
 
     // Disarm from any armed state. Only honored on the ground: airborne disarm is ignored.
     // Leaving CRITICAL/EMERGENCY, or disarming with a critical fault, latches FAULT_GROUND.
-    auto try_disarm = [&]() -> bool
-    {
+    auto try_disarm = [&]() -> bool {
         if (!in.disarm_cmd || !in.landed)
             return false;
 
         if (m_state == SystemState::kCritical || m_state == SystemState::kEmergency ||
-            f >= FaultClass::kCritical)
-        {
+            f >= FaultClass::kCritical) {
             m_fault_latched = true;
             transition(SystemState::kFaultGround, "disarmed after critical fault", now_ms);
-        }
-        else
-        {
+        } else {
             transition(SystemState::kStandby, "disarmed", now_ms);
         }
         return true;
     };
 
     // ACTIVE/DEGRADED: move to the state matching the highest active fault.
-    auto follow_fault = [&]()
-    {
-        if (f == FaultClass::kEmergency)
-        {
+    auto follow_fault = [&]() {
+        if (f == FaultClass::kEmergency) {
             transition(SystemState::kEmergency, "emergency fault", now_ms);
-        }
-        else if (f == FaultClass::kCritical)
-        {
+        } else if (f == FaultClass::kCritical) {
             m_crit_recoverable = in.fault_recoverable;
             transition(SystemState::kCritical, "critical fault", now_ms);
-        }
-        else if (f == FaultClass::kNonCritical)
-        {
+        } else if (f == FaultClass::kNonCritical) {
             transition(SystemState::kDegraded, "non-critical fault", now_ms);
-        }
-        else
-        {
+        } else {
             transition(SystemState::kActive, "faults cleared", now_ms);
         }
     };
 
-    switch (m_state)
-    {
+    switch (m_state) {
     case SystemState::kBoot:
-        if (in.airborne_at_boot)
-        {
+        if (in.airborne_at_boot) {
             transition(SystemState::kInAirReset, "rebooted airborne", now_ms);
-        }
-        else if (in.boot_finished)
-        {
+        } else if (in.boot_finished) {
             transition(SystemState::kPreflight, "boot finished", now_ms);
-        }
-        else if (t_in_state > m_params.t_boot_max_ms)
-        {
+        } else if (t_in_state > m_params.t_boot_max_ms) {
             m_fault_latched = true;
             transition(SystemState::kFaultGround, "boot timeout", now_ms);
         }
         break;
 
     case SystemState::kPreflight:
-        if (f >= FaultClass::kCritical)
-        {
+        if (f >= FaultClass::kCritical) {
             m_fault_latched = false; // clears on its own, then re-checks
             transition(SystemState::kFaultGround, "preflight fault", now_ms);
-        }
-        else if (in.preflight_ok)
-        {
+        } else if (in.preflight_ok) {
             transition(SystemState::kStandby, "preflight passed", now_ms);
         }
         break;
 
     case SystemState::kStandby:
-        if (f >= FaultClass::kCritical || !in.preflight_ok)
-        {
+        if (f >= FaultClass::kCritical || !in.preflight_ok) {
             transition(SystemState::kPreflight, "health re-check", now_ms);
-        }
-        else if (in.bench_cmd)
-        {
+        } else if (in.bench_cmd) {
             transition(SystemState::kBench, "bench mode", now_ms);
-        }
-        else if (in.arm_cmd)
-        {
+        } else if (in.arm_cmd) {
             // A non-critical fault doesn't block arming, but it starts in DEGRADED.
             if (f == FaultClass::kNonCritical)
                 transition(SystemState::kDegraded, "armed with non-critical fault", now_ms);
@@ -209,18 +173,15 @@ void SystemStateFSM::update(const SystemInputs &in, uint32_t now_ms)
     case SystemState::kCritical:
         if (try_disarm())
             break;
-        if (f == FaultClass::kEmergency)
-        {
+        if (f == FaultClass::kEmergency) {
             transition(SystemState::kEmergency, "emergency fault", now_ms);
             break;
         }
-        if (in.failsafe_failed)
-        {
+        if (in.failsafe_failed) {
             transition(SystemState::kEmergency, "failsafe can't hold", now_ms);
             break;
         }
-        if (f == FaultClass::kCritical)
-        {
+        if (f == FaultClass::kCritical) {
             // Still active: any non-recoverable fault this episode latches CRITICAL.
             m_crit_recoverable = m_crit_recoverable && in.fault_recoverable;
             m_fault_clear_timing = false;
@@ -231,13 +192,10 @@ void SystemStateFSM::update(const SystemInputs &in, uint32_t now_ms)
         // otherwise CRITICAL is latched until landing and disarm.
         if (!m_crit_recoverable || m_crit_entries >= m_params.n_crit_max)
             break;
-        if (!m_fault_clear_timing)
-        {
+        if (!m_fault_clear_timing) {
             m_fault_clear_timing = true;
             m_fault_clear_ms = now_ms;
-        }
-        else if (now_ms - m_fault_clear_ms >= m_params.t_hold_ms)
-        {
+        } else if (now_ms - m_fault_clear_ms >= m_params.t_hold_ms) {
             transition(SystemState::kDegraded, "critical fault cleared for t_hold", now_ms);
         }
         break;

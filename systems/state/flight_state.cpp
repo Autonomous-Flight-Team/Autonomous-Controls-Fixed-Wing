@@ -2,21 +2,17 @@
 
 // Transition rules: "GOOSE State Machines.drawio" (page 2).
 
-namespace
-{
+namespace {
 
-    // Armed and healthy enough to start or continue a takeoff roll.
-    bool takeoff_allowed(SystemState s)
-    {
-        return s == SystemState::kActive || s == SystemState::kDegraded;
-    }
+// Armed and healthy enough to start or continue a takeoff roll.
+bool takeoff_allowed(SystemState s) {
+    return s == SystemState::kActive || s == SystemState::kDegraded;
+}
 
 } // namespace
 
-const char *to_string(FlightState s)
-{
-    switch (s)
-    {
+const char* to_string(FlightState s) {
+    switch (s) {
     case FlightState::kOnGround:
         return "ON_GROUND";
     case FlightState::kTakeoffRoll:
@@ -47,10 +43,8 @@ const char *to_string(FlightState s)
     return "UNKNOWN";
 }
 
-bool FlightStateFSM::is_airborne() const
-{
-    switch (m_state)
-    {
+bool FlightStateFSM::is_airborne() const {
+    switch (m_state) {
     case FlightState::kClimb:
     case FlightState::kCruise:
     case FlightState::kLoiter:
@@ -70,12 +64,10 @@ bool FlightStateFSM::is_airborne() const
     return false;
 }
 
-bool FlightStateFSM::is_landed() const
-{
+bool FlightStateFSM::is_landed() const {
     // On the ground below V1: the system FSM may disarm. TAKEOFF_ROLL is included so a
     // disarm aborts the roll; ROTATE is not (committed past V1).
-    switch (m_state)
-    {
+    switch (m_state) {
     case FlightState::kOnGround:
     case FlightState::kTakeoffRoll:
     case FlightState::kRejectedTakeoff:
@@ -95,16 +87,14 @@ bool FlightStateFSM::is_landed() const
     return false;
 }
 
-void FlightStateFSM::transition(FlightState to, const char *reason, uint32_t now_ms)
-{
+void FlightStateFSM::transition(FlightState to, const char* reason, uint32_t now_ms) {
     if (to == m_state)
         return;
 
     const FlightState from = m_state;
 
     // Entry actions
-    switch (to)
-    {
+    switch (to) {
     case FlightState::kTakeoffRoll:
         m_goaround_count = 0; // new flight
         m_rtl_latched = false;
@@ -133,21 +123,18 @@ void FlightStateFSM::transition(FlightState to, const char *reason, uint32_t now
     m_changed = true;
 }
 
-void FlightStateFSM::update(const FlightInputs &in, uint32_t now_ms)
-{
+void FlightStateFSM::update(const FlightInputs& in, uint32_t now_ms) {
     m_changed = false;
 
     const SystemState sys = in.system_state;
     const uint32_t t_in_state = now_ms - m_state_entry_ms; // unsigned: safe across millis() wrap
 
     // ---- 1. MANUAL (hardware bypass): the pilot is flying, so the FSM holds its state. ----
-    if (in.manual_active)
-    {
+    if (in.manual_active) {
         m_prev_manual = true;
         return;
     }
-    if (m_prev_manual)
-    {
+    if (m_prev_manual) {
         // Pilot handed control back. The held state may be stale, so restart from what
         // the plane is actually doing: hold position if airborne, else back to ON_GROUND.
         m_prev_manual = false;
@@ -162,18 +149,13 @@ void FlightStateFSM::update(const FlightInputs &in, uint32_t now_ms)
     }
 
     // ---- 2. AIRBORNE overrides: react to the system FSM before normal transitions. ----
-    if (is_airborne())
-    {
-        if (sys == SystemState::kEmergency)
-        {
+    if (is_airborne()) {
+        if (sys == SystemState::kEmergency) {
             // Already on final: finishing the landing beats picking a new site.
             if (m_state != FlightState::kEmergencyLand && m_state != FlightState::kLanding)
                 transition(FlightState::kEmergencyLand, "system EMERGENCY", now_ms);
-        }
-        else if (sys == SystemState::kCritical)
-        {
-            switch (in.critical_response)
-            {
+        } else if (sys == SystemState::kCritical) {
+            switch (in.critical_response) {
             case FaultResponse::kFailsafeLoiter:
                 // GPS lost: can't navigate. Everywhere except short final.
                 if (m_state == FlightState::kClimb || m_state == FlightState::kCruise ||
@@ -202,8 +184,7 @@ void FlightStateFSM::update(const FlightInputs &in, uint32_t now_ms)
     }
 
     // ---- 3. Normal transitions. ----
-    switch (m_state)
-    {
+    switch (m_state) {
     case FlightState::kOnGround:
         // Takeoff needs a healthy system (ACTIVE only) and a mission to fly.
         if (in.takeoff_cmd && sys == SystemState::kActive && in.mission_valid)
@@ -236,8 +217,7 @@ void FlightStateFSM::update(const FlightInputs &in, uint32_t now_ms)
     case FlightState::kClimb:
         if (in.rtl_cmd)
             transition(FlightState::kRtl, "RTL commanded", now_ms);
-        else if (in.target_alt_reached)
-        {
+        else if (in.target_alt_reached) {
             // After a go-around or an interrupted RTL, go back to the landing pattern.
             if (m_goaround_count > 0 || m_rtl_latched)
                 transition(FlightState::kRtl, "climb done, back to pattern", now_ms);
@@ -253,8 +233,7 @@ void FlightStateFSM::update(const FlightInputs &in, uint32_t now_ms)
             transition(FlightState::kLoiter, "loiter commanded", now_ms);
         else if (!in.mission_valid)
             transition(FlightState::kLoiter, "mission invalid, holding", now_ms);
-        else if (in.mission_done)
-        {
+        else if (in.mission_done) {
             if (m_params.end_action == EndAction::kLoiter)
                 transition(FlightState::kLoiter, "mission done: loiter", now_ms);
             else
@@ -295,8 +274,7 @@ void FlightStateFSM::update(const FlightInputs &in, uint32_t now_ms)
 
     case FlightState::kFailsafeLoiter:
         // Escalation (still lost after t_loiter) arrives as system EMERGENCY via the override.
-        if (in.gps_ok)
-        {
+        if (in.gps_ok) {
             if (m_rtl_latched)
                 transition(FlightState::kRtl, "GPS recovered, back to RTL", now_ms);
             else

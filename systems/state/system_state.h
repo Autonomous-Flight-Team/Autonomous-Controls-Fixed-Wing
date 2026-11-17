@@ -1,12 +1,11 @@
 #ifndef SYSTEM_STATE_H_
 #define SYSTEM_STATE_H_
 
-#include <cstdint>
 #include "fault_table.h"
+#include <cstdint>
 
 // Values are written to logs and telemetry: never renumber, only add.
-enum class SystemState : uint8_t
-{
+enum class SystemState : uint8_t {
     // On ground, disarmed
     kBoot = 0, // must stay 0: default-initialized state is safe
     kPreflight = 1,
@@ -24,12 +23,11 @@ enum class SystemState : uint8_t
     kInAirReset = 20,
 };
 
-const char *to_string(SystemState s); // for logs and serial debug
+const char* to_string(SystemState s); // for logs and serial debug
 bool is_armed(SystemState s);         // ACTIVE, DEGRADED, CRITICAL or EMERGENCY
 
 // Tunable values (page 3 of the drawio). Same for every flight.
-struct SystemParams
-{
+struct SystemParams {
     uint32_t t_hold_ms = 5000;      // fault cleared this long before CRITICAL can recover
     uint32_t t_boot_max_ms = 30000; // BOOT taking longer than this is a fault
     uint8_t n_crit_max = 3;         // CRITICAL entries per flight before it latches
@@ -37,8 +35,7 @@ struct SystemParams
 
 // Everything the system FSM reads each loop. Filled in by the main loop.
 // Commands are one-loop pulses: the main loop edge-detects RC switches and GCS messages.
-struct SystemInputs
-{
+struct SystemInputs {
     // Bring-up and checks
     bool boot_finished = false;    // all bring-up sub-FSMs report online
     bool airborne_at_boot = false; // in-air reset evidence (only read in BOOT)
@@ -61,26 +58,23 @@ struct SystemInputs
 };
 
 // One state change, for logging.
-struct SystemTransition
-{
+struct SystemTransition {
     SystemState from = SystemState::kBoot;
     SystemState to = SystemState::kBoot;
-    const char *reason = ""; // string literal, never freed
+    const char* reason = ""; // string literal, never freed
     uint32_t time_ms = 0;
 };
 
-class SystemStateFSM
-{
-public:
-    explicit SystemStateFSM(const SystemParams &params = SystemParams{})
-        : m_params(params) {}
+class SystemStateFSM {
+  public:
+    explicit SystemStateFSM(const SystemParams& params = SystemParams{}) : m_params(params) {}
 
     // One state object per system: no copies.
-    SystemStateFSM(const SystemStateFSM &) = delete;
-    SystemStateFSM &operator=(const SystemStateFSM &) = delete;
+    SystemStateFSM(const SystemStateFSM&) = delete;
+    SystemStateFSM& operator=(const SystemStateFSM&) = delete;
 
     // Call once per control loop.
-    void update(const SystemInputs &in, uint32_t now_ms);
+    void update(const SystemInputs& in, uint32_t now_ms);
 
     SystemState state() const { return m_state; }
     bool is_armed() const;
@@ -88,13 +82,13 @@ public:
 
     // True on the loop where the state changed; last_transition() has the details.
     bool changed() const { return m_changed; }
-    const SystemTransition &last_transition() const { return m_last_transition; }
+    const SystemTransition& last_transition() const { return m_last_transition; }
 
     uint8_t get_num_crit_entries() const { return m_crit_entries; }
 
-private:
+  private:
     // The only way to change m_state.
-    void transition(SystemState to, const char *reason, uint32_t now_ms);
+    void transition(SystemState to, const char* reason, uint32_t now_ms);
 
     SystemParams m_params;
 
