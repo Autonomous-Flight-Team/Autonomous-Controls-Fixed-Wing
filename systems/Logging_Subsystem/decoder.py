@@ -1,23 +1,25 @@
 #!/usr/bin/env python3
-"""Decode datalog.bin written by the Teensy 4.1 logger.
+"""Decode datalog.bin written by the Teensy 4.1 logger. Everything is big-endian.
 
-Packet: 0xFF | system | subsystem | level | timestamp_ms (u32 LE) | len | payload | 0x00
+Packet: FEED | system | subsystem | level | timestamp_ms (u32) | len | payload | DEAD
+        (bytes on disk: FE ED ... DE AD)
 """
 import argparse
 import csv
 import struct
 import sys
 
-START, END = 0xFF, 0x00
-HEADER = 8  # START, sys, sub, level, ts(4)
+START = b"\xFE\xED"
+END = b"\xDE\xAD"
+HEADER = 10  # START(2), sys, sub, level, ts(4), len
 
 LEVELS = {0x00: "INFO", 0x0F: "WARN", 0xFF: "ERROR"}
 
 # (system, subsystem) -> (name, struct format, field names)
-# Teensy `int` is 32-bit, little-endian. Add new sensors here.
+# ">" = big-endian; Teensy `int` is 32-bit. Add new sensors here.
 DECODERS = {
-    (0x00, 0x01): ("IMU", "<3i", ("x", "y", "z")),
-    (0x00, 0x02): ("BARO", "<i", ("z",)),
+    (0x00, 0x01): ("IMU", ">3i", ("x", "y", "z")),
+    (0x00, 0x02): ("BARO", ">i", ("z",)),
 }
 
 
@@ -25,39 +27,38 @@ def parse(data: bytes, allow_unknown: bool = False):
     """Yield (packet_dict, None) for good packets and (None, skipped_bytes) for resyncs."""
     i, n = 0, len(data)
     while i < n:
-        if data[i] != START:
-            j = data.find(bytes([START]), i)
+        if data[i:i + 2] != START:
+            j = data.find(START, i + 1) if i + 1 < n else -1
             if j < 0:
                 yield None, n - i
                 return
             yield None, j - i
             i = j
 
-        if i + HEADER + 2 > n:  # not enough bytes left for even an empty packet
+        if i + HEADER + len(END) > n:  # too short for even an empty packet (truncated tail)
             yield None, n - i
             return
 
-        system, sub, level = data[i + 1], data[i + 2], data[i + 3]
-        (ts,) = struct.unpack_from("<I", data, i + 4)
-        plen = data[i + 8]
-        end = i + HEADER + 1 + plen
+        system, sub, level = data[i + 2], data[i + 3], data[i + 4]
+        (ts,) = struct.unpack_from(">I", data, i + 5)
+        plen = data[i + 9]
+        end = i + HEADER + plen
 
-        valid = end < n and data[end] == END
+        valid = end + len(END) <= n and data[end:end + len(END)] == END
         if valid and not allow_unknown:
             # known sensor with the expected payload size, else treat as a false start
             entry = DECODERS.get((system, sub))
             valid = entry is not None and struct.calcsize(entry[1]) == plen
         if not valid:
-            # false start byte (0xFF inside data), corruption, or truncated tail: skip 1 byte
-            yield None, 1
+            yield None, 1  # false start inside data, corruption, or truncation: skip 1 byte
             i += 1
             continue
 
         yield {
             "system": system, "sub": sub, "level": level, "ts": ts,
-            "payload": data[i + HEADER + 1:end],
+            "payload": data[i + HEADER:end],
         }, None
-        i = end + 1
+        i = end + len(END)
 
 
 def decode_payload(pkt):
@@ -78,7 +79,8 @@ def main():
                     help="accept packets from sensors not listed in DECODERS (raw hex output)")
     args = ap.parse_args()
 
-    data = open(args.file, "rb").read()
+    with open(args.file, "rb") as f:
+        data = f.read()
     rows, good, skipped = [], 0, 0
 
     for pkt, skip in parse(data, args.allow_unknown):

@@ -1,10 +1,10 @@
-
+#pragma once
 #include <stdint.h>
 #include <stddef.h>
 
 // Msg encodings
-#define MESSAGE_START 0xFF
-#define END_MESSAGE 0x00
+#define MESSAGE_START 0xFEED // 16-bit marker, sent big-endian: FE ED
+#define END_MESSAGE 0xDEAD   // 16-bit marker, sent big-endian: DE AD
 
 // System / subsystem IDs
 #define SENSOR 0x00
@@ -38,6 +38,20 @@ typedef struct
 {
     int z;
 } baro_raw_t;
+
+// Writes to big endian
+static inline void put_be16(uint8_t *p, uint16_t v)
+{
+    p[0] = (uint8_t)(v >> 8);
+    p[1] = (uint8_t)v;
+}
+static inline void put_be32(uint8_t *p, uint32_t v)
+{
+    p[0] = (uint8_t)(v >> 24);
+    p[1] = (uint8_t)(v >> 16);
+    p[2] = (uint8_t)(v >> 8);
+    p[3] = (uint8_t)v;
+}
 
 bool initialize_sd();
 bool write_to_sd(bool force = false);

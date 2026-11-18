@@ -1,8 +1,9 @@
 #include <Arduino.h>
-#include "../systems/Logging_Subsystem/logging_subsystem.h"
-#include "../systems/Logging_Subsystem/logging_interface.h"
+#include "logging_subsystem.h"
+#include "logging_interface.h"
 
 static ImuLogger imu_logger;
+static BaroLogger baro_logger;
 static elapsedMicros imu_timer, baro_timer, report_timer;
 
 void setup()
@@ -14,7 +15,7 @@ void setup()
     if (!initialize_sd())
         while (true)
         {
-        } // halt; handle however you prefer
+        }
 }
 
 void loop()
@@ -30,7 +31,7 @@ void loop()
     {
         baro_timer -= 1000000UL / CALL_BARO;
         baro_raw_t baro = {1013};
-        log_message(SENSOR, SUB_BARO, LOG_INFO, &baro, sizeof(baro));
+        baro_logger.loggable(SENSOR, SUB_BARO, &baro);
     }
 
     write_to_sd();

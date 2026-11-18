@@ -6,8 +6,8 @@
 
 #define BUFFER_SIZE 4096 // power of two; 128 is too small for ~100 Hz sensors
 #define MAX_PAYLOAD 64
-#define HEADER_SIZE 8 // START, sys, sub, level, ts(4)
-// packet = HEADER + len byte + payload + END
+#define HEADER_SIZE 10 // START(2), sys, sub, level, ts(4), len
+// packet = HEADER + payload + END(2)
 
 static_assert((BUFFER_SIZE & (BUFFER_SIZE - 1)) == 0, "BUFFER_SIZE must be power of two");
 
@@ -51,6 +51,7 @@ bool write_to_sd(bool force)
     uint8_t chunk[512];
     bool ok = true;
 
+    // write full sectors; on force, also write the partial remainder
     while (logging_buffer.ringbuf_count(&buffer) >= sizeof(chunk) ||
            (force && !logging_buffer.ringbuf_is_empty(&buffer)))
     {
@@ -81,6 +82,7 @@ void logging_close()
 
 uint32_t logging_dropped() { return packet_drop; }
 
+// Whole packet is pushed or none is
 static bool write_to_buffer(const uint8_t *data, size_t len)
 {
     if (!data || len == 0)
@@ -101,23 +103,24 @@ bool log_message(uint8_t system_code, uint8_t subsystem_code, uint8_t level,
     if (payload_len > MAX_PAYLOAD || (payload_len && !payload))
         return false;
 
-    uint8_t msg[HEADER_SIZE + 1 + MAX_PAYLOAD + 1];
+    uint8_t msg[HEADER_SIZE + MAX_PAYLOAD + 2];
     size_t i = 0;
-    uint32_t ms = millis();
 
-    msg[i++] = MESSAGE_START;
+    put_be16(&msg[i], MESSAGE_START);
+    i += 2;
     msg[i++] = system_code;
     msg[i++] = subsystem_code;
     msg[i++] = level;
-    memcpy(&msg[i], &ms, sizeof(ms));
-    i += sizeof(ms);
+    put_be32(&msg[i], millis());
+    i += 4;
     msg[i++] = payload_len;
     if (payload_len)
     {
         memcpy(&msg[i], payload, payload_len);
         i += payload_len;
     }
-    msg[i++] = END_MESSAGE;
+    put_be16(&msg[i], END_MESSAGE);
+    i += 2;
 
     return write_to_buffer(msg, i);
 }
