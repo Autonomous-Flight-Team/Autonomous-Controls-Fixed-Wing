@@ -494,9 +494,13 @@ class Aircraft:
                     (-1000).to_bytes(4, "little", signed=True)
                 r = self.find_or_add_log((0x00, 0x01))
                 r.sample = (t, 0x00, payload)
-            self.receive()
-            self.refill()
-            self.transmit()
+            try:
+                self.receive()
+                self.refill()
+                self.transmit()
+            except OSError as e:  # TCP peer closed or serial port unplugged
+                print(f"[{self.sim.ms() / 1000:7.1f}s] link closed ({e.__class__.__name__}: {e}); exiting")
+                return
             if gcs_was_ok and not self.gcs_ok():
                 print(f"[{self.sim.ms() / 1000:7.1f}s] ground station link LOST")
             gcs_was_ok = self.gcs_ok()
