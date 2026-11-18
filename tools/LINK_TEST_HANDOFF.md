@@ -3,6 +3,40 @@
 How to pick this work back up from scratch, for a person or for a new Claude session on either machine.
 Last updated 2026-11-18. Branch: `communications`.
 
+## Update 2026-11-18 (later): two RFD900x radios, real radio link next
+
+There are now **two** RFD900x-US radios (RFD SiK 3.57 firmware), so the RTL-SDR plan below is no
+longer the main path. The plan is handoff step 4: `comms_bench.py` on the Mac ↔ `air_sim.py` on
+Windows over the radio link (no Tailscale needed for the data).
+
+| Radio | Machine | Cable | Antenna | State |
+|---|---|---|---|---|
+| Ground (RX) | Mac | Prolific PL2303G USB-A→4-wire (needs Prolific's "PL2303Serial" driver, installed). Port `/dev/cu.PL2303G-USBtoUART130` | 900 MHz whip | **Configured and verified** |
+| Air (TX) | Windows | USB-C → 6-wire (labeled GND/CTS/VCC/TXD/RXD/RTS) | 900 MHz Yagi, via RP-SMA | **Not configured, unplugged from USB** |
+
+**Wiring (RFD900x 2×8 header).** The row with the "1" silkscreen is odd pins 1,3,5,…,15; the other
+row is 2,4,…,16. GND → pin 1, 5V → pin 4, **adapter TXD → pin 7 (radio RX), adapter RXD → pin 9
+(radio TX)**: TX/RX cross over. CTS/RTS stay unconnected.
+
+**The radios came pre-configured by someone else**: serial speed **460800**, air speed 224, NETID 25,
+TX power 30 (1 W), **RTSCTS=1** (flow control on, but RTS/CTS aren't wired). At 57600 the radio looks
+dead; it only answers `+++` at 460800.
+
+**Ground radio now (saved with AT&W, read back after ATZ):** S1=57, S2=64, S3=117, S4=20 (100 mW for
+bench testing), S5=0, S6=1, S8=902000, S9=915000, S13=0, S15=0, S20=0. **S9 can't be raised above
+915000** (928000, 927000, 926000, 925000 all return ERROR), so both radios use 902–915 MHz, 51 channels.
+
+**Configuring a radio:** `tools/rf/sik_config.py PORT` finds the baud (tries 57600, 460800, …) and
+prints ATI5 (read-only). Add `--write` to set the values above, save, reboot and read back. Add
+`--ant-mode 1` when the only antenna is on port A1 (`--ant-mode 2` for A2). For the air radio:
+
+```powershell
+.\.venv\Scripts\python.exe tools/rf/sik_config.py COM5 --ant-mode 1 --write
+```
+
+(Check the COM number first; the antenna must be on before USB goes in.) When both radios match, the
+green LEDs go from blinking to solid.
+
 ## Goal
 
 Test the GOOSE comms link (MAVLink v2 with signing, see `systems/Comms_Subsystem/README.md`) without
