@@ -36,7 +36,7 @@ Two consecutive clean runs, both all `ok` (the second with the disconnect fix, 3
 | Telemetry rates | ATTITUDE 10.1 Hz, GLOBAL_POSITION_INT / VFR_HUD 4.0, GOOSE_STATE / GPS_RAW_INT 2.0, HEARTBEAT / SYS_STATUS / BATTERY / PRESSURE / GOOSE_LOG 1.0, matching `comms_config.h` |
 | Flight commands | ARM, TAKEOFF, LOITER_UNLIM, RESUME_MISSION, RTL ACCEPTED; forced DISARM in the air DENIED; DISARM after landing ACCEPTED |
 | BENCH / fault | BENCH enter/exit ACCEPTED, ARM in BENCH DENIED, FAULT_CLEAR with no fault DENIED, DO_SET_MODE UNSUPPORTED |
-| Rates | ATTITUDE at 2 Hz → 10 msgs / 5 s; GET interval → 500000 us; IMU log at 5 Hz → 25 msgs / 5 s |
+| Rates | ATTITUDE at 2 Hz → 10–11 msgs / 5 s (11 then 10 across the two runs; the window edge decides); GET interval → 500000 us; IMU log at 5 Hz → 25 msgs / 5 s |
 | Security | Unsigned and wrong-key commands get no ACK; signed control ACCEPTED. Signing 2143 good / 123 bad (bad = only the deliberate wrong-key phase) |
 
 Measured aircraft downlink at the default rates: **~1.5 kB/s** (budget 3 kB/s; 57600 baud ≈ 5.7 kB/s).
@@ -57,8 +57,9 @@ This is the first measurement of the README's estimate.
   DERP relay `sea` (~5 ms, no direct path), which is fine.
 - The **Mac listens** (`tcpin:0.0.0.0:5760`) and **Windows connects out** (`tcp:100.85.138.126:5760`),
   because the Windows firewall blocks inbound.
-- **ProtonVPN on Windows blocks the connection** (`WinError 10013`). Turn it off, or exclude Tailscale,
-  before a linked run.
+- **ProtonVPN on Windows blocks the connection** (`WinError 10013`). Turn it fully off before a linked
+  run. Only "fully off" has been tested; excluding Tailscale with split tunnelling might work but is
+  untested.
 - pymavlink's `tcpin` accepts one client at a time, so don't probe the port with `Test-NetConnection`
   while a run is set up. A probe that connects and drops can trigger the bench early (that happened
   once: the bench ran its commands against nobody, then the real sim joined halfway through).
@@ -172,5 +173,6 @@ of `socket.socketpair()`, then run `air_sim.Aircraft(...).run()` in a thread and
    session a clear name ("Mac RX", "Windows TX").
 2. Tell each session to read `tools/LINK_TEST_HANDOFF.md` on branch `communications`.
 3. The sessions find each other with `ListAgents` and message with `SendMessage`.
-4. Before any linked run: ProtonVPN off on Windows; on the Mac the sandbox is off (or allows binding);
-   the Mac listener starts first.
+4. Before any linked run: Tailscale up on both machines (`tailscale status` shows the other as active);
+   ProtonVPN fully off on Windows; on the Mac the sandbox is off (or allows binding); the Mac listener
+   starts first.
