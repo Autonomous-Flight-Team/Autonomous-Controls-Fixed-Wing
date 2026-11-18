@@ -10,6 +10,7 @@ namespace sensors {
         }
     }
 
+    //😀
     bool SensorHealth::begin(bool start_succeeded) {
         if(start_succeeded) {
             m_status = sensor_status::NOMINAL;
