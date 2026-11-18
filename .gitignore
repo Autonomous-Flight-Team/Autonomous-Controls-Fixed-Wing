@@ -1,6 +1,9 @@
 ## Custom ignores
 .DS_Store
 .pio/
+.venv/
+# MAVLink C headers: generated from goose.xml by tools/gen_mavlink.py
+systems/Comms_Subsystem/mavlink/generated/
 *.dtmp
 *.bkp
 .vscode/
