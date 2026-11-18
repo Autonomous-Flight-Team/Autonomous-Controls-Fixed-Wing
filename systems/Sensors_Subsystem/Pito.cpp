@@ -12,7 +12,7 @@ namespace sensors {
         Pito::Pito() {
             //TODO
         }
-        
+
         bool Pito::begin() {
             Wire.begin();
             Wire.setClock(400000);
@@ -21,21 +21,20 @@ namespace sensors {
             m_health.begin(to_return);
             return to_return;
         }
-        
+
         sensor_status Pito::getStatus() {
             return m_health.get_status();
         }
-        
+
         bool Pito::isFresh() {
             return false; //PLACEHOLDER
         }
-        
+
         PitoData Pito::get() {
-            if(sensor.Read()) {
+            if (sensor.Read()) {
                 m_stats.pressure_Pa = sensor.pres_pa();
                 m_stats.die_temp_C = sensor.die_temp_c();
             }
             return m_stats;
         }
 }
-        

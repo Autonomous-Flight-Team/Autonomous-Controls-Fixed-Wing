@@ -5,15 +5,14 @@
 #include "ubx.h"
 #include <Arduino.h>
 
-        
+
 #include "SensorHealth.h"
 #include "SensorInterface.h"
 #include "SensorStatus.h"
 
 namespace sensors {
 
-    struct GpsData
-    {
+    struct GpsData {
         double latitude; //Latitude, in degrees 🌎
         double longitude; //Longitude, in degrees 🌎
         float altitude; //Altitude above sea level, meters ⛰️
@@ -44,7 +43,7 @@ namespace sensors {
         GpsData m_stats;
 
         bfs::Ubx sensor;
-        
+
         SensorHealth m_health;
 
     };

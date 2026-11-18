@@ -9,8 +9,7 @@
 
 namespace sensors {
 
-    struct PitoData
-    {
+    struct PitoData {
         float pressure_Pa; //Pressure in pascals 🧯
         float die_temp_C; //Temperature in celsius 🌡️
     };

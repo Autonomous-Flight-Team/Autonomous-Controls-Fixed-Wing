@@ -11,8 +11,7 @@
 #include "SensorStatus.h"
 
 namespace sensors {
-    struct ImuData
-    {
+    struct ImuData {
         float accelX; //X-axis Acceleration in m/s^2 🚀
         float accelY; //Y-axis Acceleration in m/s^2 🚀
         float accelZ; //Z-axis Acceleration in m/s^2 🚀
@@ -23,22 +22,22 @@ namespace sensors {
         float magY; //Y-axis mag in gauss 🧲
         float magZ; //Z-axis mag in gauss 🧲
     };
-    
+
     class ImuK {
      public:
         ImuK();
-        
+
         bool begin();
-        
+
         sensor_status getStatus();
-        
+
         bool isFresh();
-        
+
         ImuData get();
-        
+
      private:
         ImuData m_stats;
-        
+
         SensorHealth m_health;
 
         LSM9DS1 sensor;

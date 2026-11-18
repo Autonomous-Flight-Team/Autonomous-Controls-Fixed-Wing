@@ -22,8 +22,7 @@
 
 namespace sensors {
 
-    struct BaroData
-    {
+    struct BaroData {
         float temp_C; //Temperature in Celsius 🌡️
         float pressure_Pa; //Pressure in Pascals 🧯
     };

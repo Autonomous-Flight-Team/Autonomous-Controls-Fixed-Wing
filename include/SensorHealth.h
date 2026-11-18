@@ -10,7 +10,7 @@ namespace sensors {
         std::uint8_t success_threshold_from_degraded; //Success count before we mark a degraded sensor as nominal
         std::uint8_t success_threshold_from_failed; //Success count before we mark a degraded sensor as nominal
     };
-    
+
     class SensorHealth {
      public:
         //Initializes and starts the sensor

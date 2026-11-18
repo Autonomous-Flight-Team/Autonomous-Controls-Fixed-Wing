@@ -16,7 +16,7 @@ namespace sensors {
         Gps::Gps() {
             bfs::Ubx sensor(&Serial1);
         }
-        
+
         bool Gps::begin() {
             bool ok = sensor.Begin(baud);
         }
@@ -24,16 +24,16 @@ namespace sensors {
         sensor_status Gps::getStatus() {
             return m_health.get_status();
         }
-        
+
         bool Gps::isFresh() {
             return false; //PLACEHOLDER
         }
-        
+
         GpsData Gps::get() {
             bool fail;
             fail = sensor.Read();
             m_health.update_sensor_freshness(fail);
-            if(!fail) {
+            if (!fail) {
                 m_stats.latitude = sensor.lat_deg();
                 m_stats.longitude = sensor.lon_deg();
                 m_stats.altitude = sensor.alt_wgs84_m();
@@ -48,6 +48,5 @@ namespace sensors {
                 m_stats.utc_nanosec = sensor.utc_nano();
             }
             return m_stats;
-        }   
+        }
     }
-        

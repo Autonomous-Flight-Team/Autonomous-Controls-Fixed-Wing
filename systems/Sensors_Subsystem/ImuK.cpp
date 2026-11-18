@@ -15,42 +15,42 @@ namespace sensors {
     ImuK::ImuK() {
         //TODO
     }
-    
+
     bool ImuK::begin() {
         bool ok = sensor.begin();
         m_health.begin(ok);
-        
+
         return;
     }
-    
+
     sensor_status ImuK::getStatus() {
         return m_health.get_status();
     }
-    
+
     bool ImuK::isFresh() {
         return false; //PLACEHOLDER
     }
-    
+
     ImuData ImuK::get() {
         bool fail = false;
-        if(sensor.gyroAvailable()) {
+        if (sensor.gyroAvailable()) {
             sensor.readGyro();
         } else {
             fail = true;
         }
-        if(sensor.accelAvailable()) {
+        if (sensor.accelAvailable()) {
             sensor.readAccel();
         } else {
             fail = true;
         }
-        if(sensor.magAvailable()) {
+        if (sensor.magAvailable()) {
             sensor.readMag();
         } else {
             fail = true;
         }
-        if(fail) {m_health.update_sensor_freshness(false);} 
+        if (fail) {m_health.update_sensor_freshness(false);}
         else {
-            m_health.update_sensor_freshness(true);         
+            m_health.update_sensor_freshness(true);
             m_stats.gyroX = sensor.calcGyro(sensor.gx);
             m_stats.gyroY = sensor.calcGyro(sensor.gy);
             m_stats.gyroZ = sensor.calcGyro(sensor.gz);
@@ -64,4 +64,3 @@ namespace sensors {
         return m_stats;
     }
 }
-        
