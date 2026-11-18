@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-firmware:
+    name: Compile firmware (Teensy 4.1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: pio-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-${{ runner.os }}-
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install --upgrade platformio
+      - run: pio run -e teensy41
+      - uses: actions/upload-artifact@v4
+        with:
+          name: goose-firmware-${{ github.sha }}
+          path: .pio/build/teensy41/firmware.hex
+          retention-days: 14
+
+  unit-tests:
+    name: Unit tests (native)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.platformio/.cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: pio-native-${{ runner.os }}-${{ hashFiles('platformio.ini') }}
+          restore-keys: pio-native-${{ runner.os }}-
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install --upgrade platformio
+      - run: pio test -e native -v
