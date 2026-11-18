@@ -123,8 +123,8 @@ class Bench:
 
     # -- test steps
     def wait_for_link(self):
-        print("waiting for aircraft heartbeat ...")
-        for _ in range(20):
+        print(f"waiting up to {self.args.link_timeout:.0f} s for an aircraft heartbeat ...")
+        for _ in range(max(1, int(self.args.link_timeout / 0.5))):
             for m in self.pump(0.5):
                 if m.get_type() == "HEARTBEAT" and m.get_srcSystem() == self.args.target:
                     print(f"aircraft sysid {self.args.target} up, signing stats: good {self.conn.mav.signing.goodsig_count}"
@@ -233,6 +233,8 @@ def main():
     ap.add_argument("--allow-arm", action="store_true", help="also send ARM/TAKEOFF/DISARM (bench, props off!)")
     ap.add_argument("--only", choices=["telemetry", "commands", "rates", "security"], help="run one step")
     ap.add_argument("--seconds", type=float, default=10, help="telemetry window")
+    ap.add_argument("--link-timeout", type=float, default=10,
+                    help="how long to wait for the first aircraft heartbeat (e.g. 1800 when listening on tcpin:)")
     args = ap.parse_args()
 
     mav = load_goose_dialect()
