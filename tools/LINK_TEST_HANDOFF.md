@@ -37,6 +37,24 @@ prints ATI5 (read-only). Add `--write` to set the values above, save, reboot and
 (Check the COM number first; the antenna must be on before USB goes in.) When both radios match, the
 green LEDs go from blinking to solid.
 
+**Air radio configured** the same way (S20=1, Yagi on A1). **First full run over the radio link
+(2026-11-18): every check `ok`**, the same as over Tailscale. Same room, 100 mW. The ground log is in
+`~/claude/rf/radio_link_run1.log` on the Mac.
+
+| Check | Result over RF |
+|---|---|
+| Telemetry rates | ATTITUDE 10.1 Hz, GLOBAL_POSITION_INT / VFR_HUD 4.0, GOOSE_STATE / GPS_RAW_INT 2.0, the 1 Hz streams 1.0–1.1, all matching `comms_config.h` |
+| RADIO_STATUS (injected by the radio, 2 Hz) | rssi 206/206 (saturated at this short range), noise 57/54, txbuf 100% |
+| Commands, BENCH, fault, rates | Same as the Tailscale run, all `ok`. ATTITUDE at 2 Hz → 10 / 5 s, IMU log at 5 Hz → 25 / 5 s |
+| Security | Unsigned and wrong-key commands get no ACK, signed ones are ACCEPTED. Signing: good 2138, bad 126 (the deliberate wrong-key phase), unsigned 352 (the radio's own RADIO_STATUS frames, which are expected unsigned) |
+
+Commands: Mac `comms_bench.py --device /dev/cu.PL2303G-USBtoUART130 --baud 57600 --key bench-test-only
+--allow-arm --link-timeout 1800` first, then Windows `air_sim.py --device COM5 --baud 57600 --key
+bench-test-only --seconds 300`.
+
+Next: separate the antennas (other rooms or outdoors) and watch rssi and noise; a range walk with the
+Yagi; try `ATS4` at higher power once the radios are apart; then swap `air_sim` for the Teensy.
+
 ## Goal
 
 Test the GOOSE comms link (MAVLink v2 with signing, see `systems/Comms_Subsystem/README.md`) without
