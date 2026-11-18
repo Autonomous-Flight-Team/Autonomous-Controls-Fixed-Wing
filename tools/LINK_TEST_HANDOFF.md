@@ -52,7 +52,14 @@ Commands: Mac `comms_bench.py --device /dev/cu.PL2303G-USBtoUART130 --baud 57600
 --allow-arm --link-timeout 1800` first, then Windows `air_sim.py --device COM5 --baud 57600 --key
 bench-test-only --seconds 300`.
 
-Next: separate the antennas (other rooms or outdoors) and watch rssi and noise; a range walk with the
+**Run 2, antennas in separate rooms (Yagi in the bedroom, ground radio in the kitchen), 100 mW: every
+check `ok` again.** RADIO_STATUS rssi 203/206, noise 60/51 (run 1: 206/206, 57/54). SiK RSSI is roughly
+0.5 dB per unit, so that's only about 1.5 dB weaker, still near the top of the scale, with about 70 dB
+above the noise. Signing good 2679, bad 125 (the wrong-key phase). Log: `~/claude/rf/radio_link_run2_separated.log`.
+The bench prints only the last RADIO_STATUS, not an average. The air side's run 1 "LOST at 75.7 s" came
+after the bench had finished, so it was the bench closing, not a dropout.
+
+Next: separate the antennas further (outdoors) and watch rssi and noise; a range walk with the
 Yagi; try `ATS4` at higher power once the radios are apart; then swap `air_sim` for the Teensy.
 
 ## Goal
