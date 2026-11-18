@@ -20,8 +20,7 @@
 #define CALL_IMU 100
 #define CALL_BARO 190
 
-typedef struct
-{
+typedef struct {
     int subsystem_id;      // which subsystem data comes from
     int sub_sub_system_id; // subsystem-unique code
     int payload_size;      // size of the data coming in
@@ -30,23 +29,19 @@ typedef struct
 } probe_entry_t;
 
 // dummy sensors
-typedef struct
-{
+typedef struct {
     int x, y, z;
 } imu_raw_t;
-typedef struct
-{
+typedef struct {
     int z;
 } baro_raw_t;
 
 // Writes to big endian
-static inline void put_be16(uint8_t *p, uint16_t v)
-{
+static inline void put_be16(uint8_t *p, uint16_t v) {
     p[0] = (uint8_t)(v >> 8);
     p[1] = (uint8_t)v;
 }
-static inline void put_be32(uint8_t *p, uint32_t v)
-{
+static inline void put_be32(uint8_t *p, uint32_t v) {
     p[0] = (uint8_t)(v >> 24);
     p[1] = (uint8_t)(v >> 16);
     p[2] = (uint8_t)(v >> 8);

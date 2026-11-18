@@ -21,20 +21,16 @@ static RingBuffer logging_buffer;
 static const char *filename = "datalog.bin";
 static volatile uint32_t packet_drop = 0;
 
-bool initialize_sd()
-{
-    if (!sd.begin(SdioConfig(FIFO_SDIO)))
-    {
+bool initialize_sd() {
+    if (!sd.begin(SdioConfig(FIFO_SDIO))) {
         Serial.println("[ERROR] SD initialization failed!");
         return false;
     }
-    if (!logging_buffer.ringbuf_init(&buffer, backing_buffer, BUFFER_SIZE))
-    {
+    if (!logging_buffer.ringbuf_init(&buffer, backing_buffer, BUFFER_SIZE)) {
         Serial.println("[ERROR] Buffer initialization failed!");
         return false;
     }
-    if (!myFile.open(filename, O_WRONLY | O_CREAT | O_AT_END))
-    {
+    if (!myFile.open(filename, O_WRONLY | O_CREAT | O_AT_END)) {
         Serial.println("[ERROR] Could not open log file.");
         return false;
     }
@@ -42,8 +38,7 @@ bool initialize_sd()
     return true;
 }
 
-bool write_to_sd(bool force)
-{
+bool write_to_sd(bool force) {
     if (!myFile.isOpen())
         return false;
 
@@ -53,29 +48,25 @@ bool write_to_sd(bool force)
 
     // write full sectors; on force, also write the partial remainder
     while (logging_buffer.ringbuf_count(&buffer) >= sizeof(chunk) ||
-           (force && !logging_buffer.ringbuf_is_empty(&buffer)))
-    {
+           (force && !logging_buffer.ringbuf_is_empty(&buffer))) {
         size_t n = 0;
         while (n < sizeof(chunk) && logging_buffer.ringbuf_pop(&buffer, &chunk[n]))
             n++;
-        if (myFile.write(chunk, n) != n)
-        {
+        if (myFile.write(chunk, n) != n) {
             Serial.println("[ERROR] SD write failed.");
             ok = false;
             break;
         }
     }
 
-    if (force || millis() - last_sync >= 1000)
-    {
+    if (force || millis() - last_sync >= 1000) {
         myFile.sync();
         last_sync = millis();
     }
     return ok;
 }
 
-void logging_close()
-{
+void logging_close() {
     write_to_sd(true);
     myFile.close();
 }
@@ -83,12 +74,10 @@ void logging_close()
 uint32_t logging_dropped() { return packet_drop; }
 
 // Whole packet is pushed or none is
-static bool write_to_buffer(const uint8_t *data, size_t len)
-{
+static bool write_to_buffer(const uint8_t *data, size_t len) {
     if (!data || len == 0)
         return false;
-    if (len > logging_buffer.ring_buf_remaining(&buffer))
-    {
+    if (len > logging_buffer.ring_buf_remaining(&buffer)) {
         packet_drop++;
         return false;
     }
@@ -98,8 +87,7 @@ static bool write_to_buffer(const uint8_t *data, size_t len)
 }
 
 bool log_message(uint8_t system_code, uint8_t subsystem_code, uint8_t level,
-                 const void *payload, uint8_t payload_len)
-{
+                 const void *payload, uint8_t payload_len) {
     if (payload_len > MAX_PAYLOAD || (payload_len && !payload))
         return false;
 
@@ -114,8 +102,7 @@ bool log_message(uint8_t system_code, uint8_t subsystem_code, uint8_t level,
     put_be32(&msg[i], millis());
     i += 4;
     msg[i++] = payload_len;
-    if (payload_len)
-    {
+    if (payload_len) {
         memcpy(&msg[i], payload, payload_len);
         i += payload_len;
     }
