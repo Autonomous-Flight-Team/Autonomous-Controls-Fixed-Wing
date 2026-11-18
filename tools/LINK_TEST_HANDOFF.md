@@ -56,8 +56,18 @@ bench-test-only --seconds 300`.
 check `ok` again.** RADIO_STATUS rssi 203/206, noise 60/51 (run 1: 206/206, 57/54). SiK RSSI is roughly
 0.5 dB per unit, so that's only about 1.5 dB weaker, still near the top of the scale, with about 70 dB
 above the noise. Signing good 2679, bad 125 (the wrong-key phase). Log: `~/claude/rf/radio_link_run2_separated.log`.
-The bench prints only the last RADIO_STATUS, not an average. The air side's run 1 "LOST at 75.7 s" came
-after the bench had finished, so it was the bench closing, not a dropout.
+The bench prints only the last RADIO_STATUS, not an average.
+
+Air side (`air_sim`), both runs: link UP at 0.2 s, 18 commands with the expected results, dups 0,
+txbuf 96–99%. **No RF dropouts.** Each LOST is expected:
+- The first LOST (run 1 at 75.7 s, run 2 at 95.8 s) starts with the bench's wrong-key phase. air_sim
+  rejects those ground heartbeats (badsig climbs to 12) and declares the link lost.
+- It comes back UP when the correctly signed control command arrives.
+- The final LOST is the bench closing.
+
+`dropped` is 6 in both runs, all before 5.1 s. That's the same count at two ranges, so it's probably a
+startup sequence gap, not RF loss. air_sim doesn't decode its own RADIO_STATUS, so there's no
+air-side RSSI yet.
 
 Next: separate the antennas further (outdoors) and watch rssi and noise; a range walk with the
 Yagi; try `ATS4` at higher power once the radios are apart; then swap `air_sim` for the Teensy.
