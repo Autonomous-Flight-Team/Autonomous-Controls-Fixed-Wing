@@ -69,6 +69,24 @@ txbuf 96–99%. **No RF dropouts.** Each LOST is expected:
 startup sequence gap, not RF loss. air_sim doesn't decode its own RADIO_STATUS, so there's no
 air-side RSSI yet.
 
+### Range test (planned)
+
+- **Fixed end (air side):** the Yagi radio running `air_sim.py --device COMx --baud 57600 --key bench-test-only
+  --seconds 0` (until Ctrl-C), with the Yagi aimed along the route. For a Windows laptop, follow
+  `tools/rf/WINDOWS_SETUP.md`.
+- **Moving end (ground side):** carry the Mac with the whip radio and run
+  `uv run --no-project --with pymavlink==2.4.50 --with pyserial tools/rf/link_logger.py --device
+  /dev/cu.PL2303G-USBtoUART130 --key bench-test-only`. That opens a live dashboard at
+  http://127.0.0.1:8765 showing link up/lost, RSSI and noise on both ends (RADIO_STATUS remrssi/remnoise is
+  the far radio, so air_sim needs no change), fade margin, msgs/s, loss % from sequence gaps, and a live
+  packet feed. A marker box tags positions. It writes one CSV row per second to `range_logs/` (gitignored).
+  Add `--host 0.0.0.0` to watch from a phone on the same hotspot (the dashboard has no password).
+- **Plan:** 2 min baseline at home → walk out at 100 mW with markers → optionally lower `S4` on both radios
+  to find the edge sooner (−6 dB ≈ half the free-space range) → turn the Yagi off-axis → walk back. Keep S4
+  ≤ 29 with the 7 dBi Yagi (FCC). A phone GPS track gives distances to match against the markers.
+- Desk test without radios: `link_logger.py --device tcpin:127.0.0.1:5761 …` plus
+  `air_sim.py --device tcp:127.0.0.1:5761 …`.
+
 Next: separate the antennas further (outdoors) and watch rssi and noise; a range walk with the
 Yagi; try `ATS4` at higher power once the radios are apart; then swap `air_sim` for the Teensy.
 

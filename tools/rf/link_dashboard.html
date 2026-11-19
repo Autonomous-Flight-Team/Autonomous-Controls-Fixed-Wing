@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GOOSE Link Monitor</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #1b1f24; --muted: #66707c; --line: #e3e6ea;
+  --up: #1f9d55; --down: #d64545; --wait: #8a94a0; --warn: #c98a00;
+  --s1: #2f6fdb; --s2: #d9480f; --s3: #7aa5ef; --s4: #f0a07a; --bar: #d64545; --rate: #2f6fdb;
+  --mark: #7b4bd1;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1216; --panel: #171b21; --ink: #e8ebef; --muted: #8d97a3; --line: #262c34;
+    --s1: #6c9cf0; --s2: #f07a45; --s3: #3d5f99; --s4: #8f4d2c; --rate: #6c9cf0; --mark: #a585ec;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1216; --panel: #171b21; --ink: #e8ebef; --muted: #8d97a3; --line: #262c34;
+  --s1: #6c9cf0; --s2: #f07a45; --s3: #3d5f99; --s4: #8f4d2c; --rate: #6c9cf0; --mark: #a585ec;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px;
+  background: var(--panel); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 2; }
+h1 { font-size: 17px; margin: 0; font-weight: 650; }
+.pill { padding: 4px 12px; border-radius: 999px; font-weight: 700; color: #fff; background: var(--wait);
+  letter-spacing: .03em; }
+.pill.up { background: var(--up); } .pill.down { background: var(--down); animation: blink 1s infinite; }
+@keyframes blink { 50% { opacity: .55; } }
+.meta { color: var(--muted); font-size: 12.5px; }
+.spacer { flex: 1; }
+button, select, input { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; }
+button { cursor: pointer; } button:hover { border-color: var(--muted); }
+button.primary { background: var(--mark); border-color: var(--mark); color: #fff; font-weight: 600; }
+main { padding: 16px; display: grid; gap: 16px; max-width: 1400px; margin: 0 auto; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.tile .k { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.tile .v { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.tile .s { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.v.good { color: var(--up); } .v.warn { color: var(--warn); } .v.bad { color: var(--down); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+.panel h2 { font-size: 14px; margin: 0 0 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.legend { display: flex; gap: 12px; font-weight: 400; color: var(--muted); font-size: 12px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 12px; height: 3px; vertical-align: middle; margin-right: 4px; border-radius: 2px; }
+canvas { width: 100%; height: 220px; display: block; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 900px) { .grid2 { grid-template-columns: 1fr; } }
+.markrow { display: flex; gap: 8px; flex-wrap: wrap; }
+.markrow input { flex: 1; min-width: 180px; padding: 9px 12px; }
+#markList { margin: 8px 0 0; padding: 0; list-style: none; max-height: 120px; overflow: auto; font-size: 13px; }
+#markList li { padding: 2px 0; } #markList b { color: var(--mark); font-variant-numeric: tabular-nums; }
+.feed { height: 360px; overflow: auto; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.feed table { width: 100%; border-collapse: collapse; }
+.feed td { padding: 1px 8px 1px 0; white-space: nowrap; }
+.feed td.info { white-space: normal; color: var(--muted); }
+.feed tr.gap td { color: var(--down); font-weight: 600; }
+.feed tr.radio td { color: var(--s2); }
+.types { font: 12px/1.6 ui-monospace, Menlo, Consolas, monospace; columns: 2; }
+.small { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>GOOSE link monitor</h1>
+  <span id="pill" class="pill">WAITING</span>
+  <span class="meta" id="meta">connecting…</span>
+  <span class="spacer"></span>
+  <label class="meta"><input type="checkbox" id="beep"> beep on loss</label>
+  <select id="win" title="chart window">
+    <option value="120">last 2 min</option><option value="600" selected>last 10 min</option>
+    <option value="1800">last 30 min</option><option value="0">whole run</option>
+  </select>
+  <a href="/csv"><button>Download CSV</button></a>
+</header>
+<main>
+  <section class="tiles">
+    <div class="tile"><div class="k">Ground RSSI</div><div class="v" id="tRssi">–</div><div class="s" id="sRssi">this radio hears</div></div>
+    <div class="tile"><div class="k">Air RSSI</div><div class="v" id="tRem">–</div><div class="s" id="sRem">far radio hears</div></div>
+    <div class="tile"><div class="k">Fade margin</div><div class="v" id="tMargin">–</div><div class="s" id="sMargin">signal above noise</div></div>
+    <div class="tile"><div class="k">Packet loss 10 s</div><div class="v" id="tLoss">–</div><div class="s" id="sLoss"></div></div>
+    <div class="tile"><div class="k">Messages / s</div><div class="v" id="tRate">–</div><div class="s" id="sRate"></div></div>
+    <div class="tile"><div class="k">Last heard</div><div class="v" id="tAge">–</div><div class="s" id="sAge"></div></div>
+  </section>
+
+  <section class="panel">
+    <h2>Drop a marker <span class="small">type where you are, press Enter: it goes in the CSV and on the charts</span></h2>
+    <div class="markrow">
+      <input id="markIn" placeholder="e.g. corner of 45th & University, Yagi in view" autocomplete="off">
+      <button class="primary" id="markBtn">Drop marker</button>
+    </div>
+    <ul id="markList"></ul>
+  </section>
+
+  <section class="panel">
+    <h2>Signal (dBm, approx.)
+      <span class="legend"><span><i style="background:var(--s1)"></i>ground RSSI</span>
+      <span><i style="background:var(--s2)"></i>air RSSI</span>
+      <span><i style="background:var(--s3)"></i>ground noise</span>
+      <span><i style="background:var(--s4)"></i>air noise</span>
+      <span><i style="background:var(--mark)"></i>marker</span></span></h2>
+    <canvas id="cSig"></canvas>
+  </section>
+
+  <div class="grid2">
+    <section class="panel"><h2>Messages per second</h2><canvas id="cRate"></canvas></section>
+    <section class="panel"><h2>Packet loss % <span class="small">from MAVLink sequence gaps; red band = link lost</span></h2><canvas id="cLoss"></canvas></section>
+  </div>
+
+  <div class="grid2">
+    <section class="panel">
+      <h2>Live packets <button id="pause">Pause</button>
+        <input id="filter" placeholder="filter type, e.g. HEARTBEAT" style="padding:4px 8px">
+        <span class="small" id="feedInfo"></span></h2>
+      <div class="feed" id="feed"><table><tbody id="feedBody"></tbody></table></div>
+    </section>
+    <section class="panel">
+      <h2>Message types <span class="small">rate over the last 5 s</span></h2>
+      <div class="types" id="types"></div>
+      <h2 style="margin-top:14px">Radio counters</h2>
+      <div class="types" id="counters"></div>
+    </section>
+  </div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const S = { seconds: [], markers: [], pkts: [], lastPktT: null, lastHbT: null, started: null, paused: false, wasUp: null };
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmt = (v, d = 0) => v == null ? "–" : Number(v).toFixed(d);
+
+// ---------- charts ----------
+function draw(cv, series, o) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const g = cv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, h);
+  const rows = S.seconds; if (!rows.length) return;
+  const win = +$("win").value, tEnd = Math.max(rows[rows.length - 1].elapsed_s, 30);
+  const tStart = win ? Math.max(0, tEnd - win) : 0;
+  const vis = rows.filter(r => r.elapsed_s >= tStart);
+  let lo = o.min, hi = o.max;
+  if (lo == null || hi == null) {
+    const vals = []; for (const r of vis) for (const s of series) { const v = r[s.key]; if (v != null) vals.push(v); }
+    if (!vals.length) { lo = lo ?? 0; hi = hi ?? 1; }
+    else { const a = Math.min(...vals), b = Math.max(...vals), pad = Math.max(2, (b - a) * .12);
+      lo = lo ?? Math.floor(a - pad); hi = hi ?? Math.ceil(b + pad); }
+  }
+  const L = 44, R = 10, T = 8, B = 22, pw = w - L - R, ph = h - T - B;
+  const X = t => L + (t - tStart) / (tEnd - tStart) * pw, Y = v => T + (1 - (v - lo) / (hi - lo)) * ph;
+  g.font = "11px -apple-system, Segoe UI, sans-serif"; g.fillStyle = css("--muted"); g.strokeStyle = css("--line"); g.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) { const v = lo + (hi - lo) * i / 4, y = Y(v);
+    g.beginPath(); g.moveTo(L, y); g.lineTo(w - R, y); g.stroke(); g.fillText(v.toFixed(Math.abs(hi - lo) < 10 ? 1 : 0), 4, y + 4); }
+  const span = tEnd - tStart, step = [10, 30, 60, 120, 300, 600, 1800].find(s => span / s <= 8) || 3600;
+  for (let t = Math.ceil(tStart / step) * step; t <= tEnd; t += step) { const x = X(t);
+    g.fillText(t >= 60 ? `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}` : `${t}s`, x - 10, h - 6); }
+  // link-lost shading
+  g.fillStyle = css("--down") + "22";
+  for (const r of vis) if (!r.link_up && S.everUp) g.fillRect(X(r.elapsed_s - 1), T, Math.max(1, pw / (tEnd - tStart)), ph);
+  if (o.bars) {
+    g.fillStyle = css(o.bars.color);
+    const bw = Math.max(1, pw / (tEnd - tStart) - 1);
+    for (const r of vis) { const v = r[o.bars.key]; if (v) g.fillRect(X(r.elapsed_s) - bw, Y(Math.min(v, hi)), bw, Y(lo) - Y(Math.min(v, hi))); }
+  }
+  for (const s of series) {
+    g.strokeStyle = css(s.color); g.lineWidth = s.width || 2; g.beginPath(); let pen = false;
+    for (const r of vis) { const v = r[s.key]; if (v == null) { pen = false; continue; }
+      const x = X(r.elapsed_s), y = Y(Math.max(lo, Math.min(hi, v))); pen ? g.lineTo(x, y) : g.moveTo(x, y); pen = true; }
+    g.stroke();
+  }
+  g.strokeStyle = css("--mark"); g.fillStyle = css("--mark"); g.setLineDash([4, 3]); g.lineWidth = 1;
+  for (const m of S.markers) if (m.t >= tStart) { const x = X(m.t);
+    g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); if (o.labels) g.fillText(m.label.slice(0, 22), x + 3, T + 11); }
+  g.setLineDash([]);
+}
+function drawAll() {
+  draw($("cSig"), [{ key: "noise_dbm", color: "--s3", width: 1.5 }, { key: "remnoise_dbm", color: "--s4", width: 1.5 },
+                   { key: "rssi_dbm", color: "--s1" }, { key: "remrssi_dbm", color: "--s2" }], { labels: true });
+  draw($("cRate"), [{ key: "msgs", color: "--rate" }], { min: 0 });
+  draw($("cLoss"), [], { min: 0, max: 100, bars: { key: "loss_pct", color: "--bar" } });
+}
+
+// ---------- tiles ----------
+function cls(el, c) { el.classList.remove("good", "warn", "bad"); if (c) el.classList.add(c); }
+function lastWith(k) { for (let i = S.seconds.length - 1; i >= 0; i--) if (S.seconds[i][k] != null) return S.seconds[i]; return null; }
+function tiles() {
+  const r = S.seconds[S.seconds.length - 1];
+  const up = r ? !!r.link_up : false;
+  if (up) S.everUp = true;
+  const pill = $("pill");
+  pill.textContent = !r ? "WAITING" : up ? "LINK UP" : S.everUp ? "LINK LOST" : "WAITING";
+  pill.className = "pill " + (!r ? "" : up ? "up" : S.everUp ? "down" : "");
+  if (S.wasUp === true && !up && $("beep").checked) beep();
+  S.wasUp = up;
+  const rs = lastWith("rssi");
+  $("tRssi").textContent = rs ? `${fmt(rs.rssi_dbm)} dBm` : "–";
+  $("sRssi").textContent = rs ? `raw ${rs.rssi}, noise ${rs.noise} (${fmt(rs.noise_dbm)} dBm)` : "no RADIO_STATUS yet";
+  $("tRem").textContent = rs ? `${fmt(rs.remrssi_dbm)} dBm` : "–";
+  $("sRem").textContent = rs ? `raw ${rs.remrssi}, noise ${rs.remnoise} (${fmt(rs.remnoise_dbm)} dBm)` : "far radio hears";
+  const mg = rs ? Math.min(rs.margin_db, rs.rem_margin_db) : null;
+  $("tMargin").textContent = mg == null ? "–" : `${fmt(mg)} dB`;
+  cls($("tMargin"), mg == null ? null : mg > 20 ? "good" : mg > 10 ? "warn" : "bad");
+  $("sMargin").textContent = rs ? `ground ${fmt(rs.margin_db)} / air ${fmt(rs.rem_margin_db)} dB` : "signal above noise";
+  const last10 = S.seconds.slice(-10); let got = 0, lost = 0; for (const x of last10) { got += x.msgs; lost += x.lost; }
+  const loss = got + lost ? 100 * lost / (got + lost) : null;
+  $("tLoss").textContent = loss == null ? "–" : `${fmt(loss, 1)}%`;
+  cls($("tLoss"), loss == null ? null : loss < 2 ? "good" : loss < 10 ? "warn" : "bad");
+  $("sLoss").textContent = `${lost} lost / ${got} received`;
+  $("tRate").textContent = r ? r.msgs : "–";
+  $("sRate").textContent = r ? `${(r.bytes / 1000).toFixed(2)} kB/s` : "";
+  const age = S.lastPktT == null ? null : (S.nowT() - S.lastPktT);
+  $("tAge").textContent = age == null ? "–" : `${fmt(age, 1)} s`;
+  cls($("tAge"), age == null ? null : age < 1.5 ? "good" : age < 5 ? "warn" : "bad");
+  $("sAge").textContent = r ? `run time ${Math.floor(r.elapsed_s / 60)}:${String(r.elapsed_s % 60).padStart(2, "0")}` : "";
+  // types + counters
+  const cut = S.nowT() - 5, cnt = {};
+  for (const p of S.pkts) if (p.t >= cut) cnt[p.type] = (cnt[p.type] || 0) + 1;
+  $("types").innerHTML = Object.keys(cnt).sort().map(k => `${k.padEnd(20, " ").replace(/ /g, "&nbsp;")} ${(cnt[k] / 5).toFixed(1)} Hz`).join("<br>") || "<span class=small>nothing yet</span>";
+  const c = lastWith("rxerrors");
+  $("counters").innerHTML = c ? `rxerrors&nbsp;${c.rxerrors}<br>fixed&nbsp;${c.fixed}<br>txbuf&nbsp;${c.txbuf}%<br>bad&nbsp;sig&nbsp;(total)&nbsp;${S.seconds.reduce((a, x) => a + (x.badsig || 0), 0)}` : "<span class=small>no RADIO_STATUS yet</span>";
+}
+S.nowT = () => S.started == null ? 0 : (Date.now() - S.started) / 1000;
+
+// ---------- feed ----------
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]); }
+function addPkts(list) {
+  for (const p of list) { S.pkts.push(p); S.lastPktT = p.t; }
+  if (S.pkts.length > 3000) S.pkts.splice(0, S.pkts.length - 3000);
+  if (!S.paused) renderFeed();
+}
+function renderFeed() {
+  const f = $("filter").value.trim().toUpperCase();
+  const rows = []; let n = 0;
+  for (let i = S.pkts.length - 1; i >= 0 && n < 250; i--) {
+    const p = S.pkts[i]; if (f && !p.type.includes(f)) continue; n++;
+    const radio = p.sys === 51 && p.comp === 68;
+    rows.push(`<tr class="${p.gap ? "gap" : radio ? "radio" : ""}"><td>${p.t.toFixed(2)}</td><td>${esc(p.type)}</td>` +
+      `<td>${p.sys}/${p.comp}</td><td>#${p.seq}</td><td class="info">${p.gap ? `⚠ ${p.gap} lost before this · ` : ""}${esc(p.info)}</td></tr>`);
+  }
+  $("feedBody").innerHTML = rows.join("");
+  $("feedInfo").textContent = `${S.pkts.length} kept`;
+}
+$("pause").onclick = () => { S.paused = !S.paused; $("pause").textContent = S.paused ? "Resume" : "Pause"; if (!S.paused) renderFeed(); };
+$("filter").oninput = renderFeed;
+
+// ---------- markers ----------
+function renderMarkers() {
+  $("markList").innerHTML = S.markers.slice().reverse().map(m =>
+    `<li><b>${Math.floor(m.t / 60)}:${String(Math.floor(m.t % 60)).padStart(2, "0")}</b> ${esc(m.label)}</li>`).join("");
+}
+async function dropMarker() {
+  const label = $("markIn").value.trim(); if (!label) return;
+  const r = await fetch("/marker", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label }) });
+  if (r.ok) $("markIn").value = "";
+}
+$("markBtn").onclick = dropMarker;
+$("markIn").addEventListener("keydown", e => { if (e.key === "Enter") dropMarker(); });
+
+// ---------- audio ----------
+let actx = null;
+function beep() { try { actx = actx || new AudioContext(); const o = actx.createOscillator(), g = actx.createGain();
+  o.frequency.value = 880; g.gain.value = .15; o.connect(g); g.connect(actx.destination); o.start(); o.stop(actx.currentTime + .4); } catch (e) {} }
+$("beep").onchange = () => { if ($("beep").checked) { actx = actx || new AudioContext(); } };
+
+// ---------- stream ----------
+function connect() {
+  const es = new EventSource("/events");
+  es.addEventListener("hello", e => {
+    const d = JSON.parse(e.data);
+    S.seconds = d.seconds; S.markers = d.markers; S.pkts = d.packets; S.everUp = d.seconds.some(r => r.link_up);
+    S.started = Date.now() - d.now * 1000;  // server-relative clock, immune to device clock skew
+    S.lastPktT = d.packets.length ? d.packets[d.packets.length - 1].t : null;
+    $("meta").textContent = `${d.device} · log ${d.csv} · started ${d.started.replace("T", " ")}`;
+    renderMarkers(); renderFeed(); tiles(); drawAll();
+  });
+  es.addEventListener("sec", e => { S.seconds.push(JSON.parse(e.data)); tiles(); drawAll(); });
+  es.addEventListener("pkts", e => addPkts(JSON.parse(e.data)));
+  es.addEventListener("marker", e => { S.markers.push(JSON.parse(e.data)); renderMarkers(); drawAll(); });
+  es.onerror = () => { $("pill").textContent = "LOGGER OFFLINE"; $("pill").className = "pill down"; };
+}
+$("win").onchange = drawAll;
+window.addEventListener("resize", drawAll);
+setInterval(() => { if (S.started != null) tiles(); }, 500);
+connect();
+</script>
+</body>
+</html>
