@@ -1,0 +1,166 @@
+<?xml version="1.0"?>
+<!--
+  GOOSE MAVLink dialect. Shared between the aircraft firmware and the ground station.
+
+  ID choice: mavlink.io says private dialects may use any range, but should avoid the
+  MAVLink 1 message range (0-255) and the ranges already allocated to public dialects
+  (messages: common 300-10000, uAvionix 10001-10049, loweheiser 10150-10199,
+  ArduPilotMega 11000-11999, icarous 42000-42999; commands: common 0-39999,
+  ASLUAV 40001-41999, ArduPilotMega 42000-42999). Every bundled pymavlink dialect was
+  also checked for collisions (52000/52001 are already used by one of them).
+    messages: 23100-23199   commands: 44100-44199
+
+  After editing this file, run `uv run tools/gen_mavlink.py` to regenerate the C headers
+  (mavlink/generated/ is gitignored; commit only this file).
+-->
+<mavlink>
+  <include>common.xml</include>
+  <version>2</version>
+  <enums>
+    <!-- GOOSE_SYSTEM_STATE, GOOSE_FLIGHT_STATE and GOOSE_FAULT mirror SystemState,
+         FlightState and FaultId in systems/state/ value for value. Those values are
+         "written to logs and telemetry: never renumber". state_bridge.cpp checks every
+         value with static_assert, so a mismatch fails the build. -->
+    <enum name="GOOSE_SYSTEM_STATE">
+      <description>System (health) state. Same values as SystemState (systems/state/system_state.h).</description>
+      <entry value="0" name="GOOSE_SYSTEM_STATE_BOOT"><description>Subsystems coming online.</description></entry>
+      <entry value="1" name="GOOSE_SYSTEM_STATE_PREFLIGHT"><description>Sensor checks, estimator convergence.</description></entry>
+      <entry value="2" name="GOOSE_SYSTEM_STATE_STANDBY"><description>All systems healthy, ready to arm.</description></entry>
+      <entry value="3" name="GOOSE_SYSTEM_STATE_FAULT_GROUND"><description>On ground with an active or latched fault.</description></entry>
+      <entry value="4" name="GOOSE_SYSTEM_STATE_BENCH"><description>Bench test: motor locked, servos live.</description></entry>
+      <entry value="10" name="GOOSE_SYSTEM_STATE_ACTIVE"><description>Armed, all healthy.</description></entry>
+      <entry value="11" name="GOOSE_SYSTEM_STATE_DEGRADED"><description>Armed, non-critical fault.</description></entry>
+      <entry value="12" name="GOOSE_SYSTEM_STATE_CRITICAL"><description>Armed, failsafe required.</description></entry>
+      <entry value="13" name="GOOSE_SYSTEM_STATE_EMERGENCY"><description>Armed, flight cannot continue safely.</description></entry>
+      <entry value="20" name="GOOSE_SYSTEM_STATE_IN_AIR_RESET"><description>Rebooted in flight: disarmed, pilot in MANUAL.</description></entry>
+    </enum>
+    <enum name="GOOSE_FLIGHT_STATE">
+      <description>Flight state. Same values as FlightState (systems/state/flight_state.h).</description>
+      <entry value="0" name="GOOSE_FLIGHT_STATE_ON_GROUND"/>
+      <entry value="1" name="GOOSE_FLIGHT_STATE_TAKEOFF_ROLL"/>
+      <entry value="2" name="GOOSE_FLIGHT_STATE_ROTATE"/>
+      <entry value="3" name="GOOSE_FLIGHT_STATE_LANDED"/>
+      <entry value="10" name="GOOSE_FLIGHT_STATE_CLIMB"/>
+      <entry value="11" name="GOOSE_FLIGHT_STATE_CRUISE"/>
+      <entry value="12" name="GOOSE_FLIGHT_STATE_LOITER"><description>Commanded GPS orbit.</description></entry>
+      <entry value="13" name="GOOSE_FLIGHT_STATE_RTL"/>
+      <entry value="14" name="GOOSE_FLIGHT_STATE_DESCENT"/>
+      <entry value="15" name="GOOSE_FLIGHT_STATE_LANDING"/>
+      <entry value="20" name="GOOSE_FLIGHT_STATE_REJECTED_TAKEOFF"/>
+      <entry value="21" name="GOOSE_FLIGHT_STATE_FAILSAFE_LOITER"><description>GPS lost: attitude-hold circle.</description></entry>
+      <entry value="22" name="GOOSE_FLIGHT_STATE_EMERGENCY_LAND"/>
+    </enum>
+    <enum name="GOOSE_FAULT" bitmask="true">
+      <description>Active faults. Bit N = FaultId value N (systems/state/fault_table.h). MANUAL (watchdog / pilot switch) is hardware, not a fault: see GOOSE_STATE_FLAGS.</description>
+      <entry value="1" name="GOOSE_FAULT_TELEMETRY_LOST"><description>Non-critical.</description></entry>
+      <entry value="2" name="GOOSE_FAULT_REDUNDANT_SENSOR"><description>Non-critical.</description></entry>
+      <entry value="4" name="GOOSE_FAULT_BARO"><description>Non-critical.</description></entry>
+      <entry value="8" name="GOOSE_FAULT_MAG"><description>Non-critical.</description></entry>
+      <entry value="16" name="GOOSE_FAULT_LOGGING_FAILURE"><description>Non-critical; blocks arming on the ground.</description></entry>
+      <entry value="32" name="GOOSE_FAULT_RC_LOST"><description>Non-critical, escalates to critical.</description></entry>
+      <entry value="64" name="GOOSE_FAULT_LOOP_OVERRUN"><description>Non-critical, escalates to emergency.</description></entry>
+      <entry value="128" name="GOOSE_FAULT_GPS_LOST"><description>Critical.</description></entry>
+      <entry value="256" name="GOOSE_FAULT_AIRSPEED"><description>Critical.</description></entry>
+      <entry value="512" name="GOOSE_FAULT_GEOFENCE"><description>Critical.</description></entry>
+      <entry value="1024" name="GOOSE_FAULT_BATTERY_LOW"><description>Critical.</description></entry>
+      <entry value="2048" name="GOOSE_FAULT_IN_AIR_RESET"><description>Critical.</description></entry>
+      <entry value="4096" name="GOOSE_FAULT_BATTERY_CRITICAL"><description>Emergency.</description></entry>
+      <entry value="8192" name="GOOSE_FAULT_IMU_LOST"><description>Emergency.</description></entry>
+      <entry value="16384" name="GOOSE_FAULT_ESTIMATOR_DIVERGED"><description>Emergency.</description></entry>
+      <entry value="32768" name="GOOSE_FAULT_MOTOR_ESC"><description>Emergency.</description></entry>
+      <entry value="65536" name="GOOSE_FAULT_SERVO"><description>Emergency.</description></entry>
+    </enum>
+    <enum name="GOOSE_STATE_FLAGS" bitmask="true">
+      <description>GOOSE_STATE.flags.</description>
+      <entry value="1" name="GOOSE_STATE_FLAGS_ARMED"><description>System state is ACTIVE, DEGRADED, CRITICAL or EMERGENCY.</description></entry>
+      <entry value="2" name="GOOSE_STATE_FLAGS_MANUAL_ACTIVE"><description>Servo mux is on the pilot (hardware MANUAL bypass); the flight FSM is frozen.</description></entry>
+    </enum>
+    <enum name="GOOSE_SENSOR_STATUS">
+      <description>Same numeric values as sensors::sensor_status.</description>
+      <entry value="0" name="GOOSE_SENSOR_STATUS_UNINITIALIZED"/>
+      <entry value="1" name="GOOSE_SENSOR_STATUS_NOMINAL"/>
+      <entry value="2" name="GOOSE_SENSOR_STATUS_DEGRADED"/>
+      <entry value="3" name="GOOSE_SENSOR_STATUS_FAILED"/>
+    </enum>
+    <enum name="GOOSE_SENSOR_INDEX">
+      <description>Index into GOOSE_STATE.sensor_status.</description>
+      <entry value="0" name="GOOSE_SENSOR_INDEX_IMU"/>
+      <entry value="1" name="GOOSE_SENSOR_INDEX_BARO"/>
+      <entry value="2" name="GOOSE_SENSOR_INDEX_GPS"/>
+      <entry value="3" name="GOOSE_SENSOR_INDEX_MAG"/>
+      <entry value="4" name="GOOSE_SENSOR_INDEX_AIRSPEED"/>
+      <entry value="5" name="GOOSE_SENSOR_INDEX_BATTERY"/>
+      <entry value="6" name="GOOSE_SENSOR_INDEX_RC"/>
+      <entry value="7" name="GOOSE_SENSOR_INDEX_SPARE"/>
+    </enum>
+    <enum name="GOOSE_LOG_LEVEL">
+      <description>Logger levels (Logging_Subsystem).</description>
+      <entry value="0" name="GOOSE_LOG_LEVEL_INFO"/>
+      <entry value="15" name="GOOSE_LOG_LEVEL_WARN"/>
+      <entry value="255" name="GOOSE_LOG_LEVEL_ERROR"/>
+    </enum>
+    <enum name="MAV_CMD">
+      <entry value="44100" name="MAV_CMD_GOOSE_SET_LOG_RATE" hasLocation="false" isDestination="false">
+        <description>Set the downlink interval of one logger stream inside GOOSE_LOG. WARN and ERROR records are always sent immediately, whatever the interval.</description>
+        <param index="1" label="System" minValue="0" maxValue="255" increment="1">Logger system code.</param>
+        <param index="2" label="Subsystem" minValue="0" maxValue="255" increment="1">Logger subsystem code.</param>
+        <param index="3" label="Interval" units="us" minValue="-1" increment="1">Interval between records. -1: off, 0: default.</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="44101" name="MAV_CMD_GOOSE_FAULT_CLEAR" hasLocation="false" isDestination="false">
+        <description>Acknowledge a latched FAULT_GROUND, or an IN_AIR_RESET, so the system FSM returns to PREFLIGHT. Sets SystemInputs::fault_clear_cmd for one loop.</description>
+        <param index="1">Empty</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="44102" name="MAV_CMD_GOOSE_BENCH" hasLocation="false" isDestination="false">
+        <description>Enter BENCH mode from STANDBY (motor locked, servos live), or leave it (goes back through PREFLIGHT). Sets SystemInputs::bench_cmd or exit_bench_cmd for one loop.</description>
+        <param index="1" label="Enter" minValue="0" maxValue="1" increment="1">1: enter BENCH, 0: exit BENCH.</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+      <entry value="44103" name="MAV_CMD_GOOSE_RESUME_MISSION" hasLocation="false" isDestination="false">
+        <description>Leave LOITER or RTL and continue the mission (CRUISE). Sets FlightInputs::resume_cmd for one loop.</description>
+        <param index="1">Empty</param>
+        <param index="2">Empty</param>
+        <param index="3">Empty</param>
+        <param index="4">Empty</param>
+        <param index="5">Empty</param>
+        <param index="6">Empty</param>
+        <param index="7">Empty</param>
+      </entry>
+    </enum>
+  </enums>
+  <messages>
+    <message id="23100" name="GOOSE_STATE">
+      <description>GOOSE state machine snapshot. Sent at its stream rate and immediately when a state, flag or fault bit changes.</description>
+      <field type="uint32_t" name="time_boot_ms" units="ms">Timestamp (time since system boot).</field>
+      <field type="uint32_t" name="active_faults" enum="GOOSE_FAULT" display="bitmask">Active (debounced) faults.</field>
+      <field type="uint8_t" name="system_state" enum="GOOSE_SYSTEM_STATE">System (health) state.</field>
+      <field type="uint8_t" name="flight_state" enum="GOOSE_FLIGHT_STATE">Flight state.</field>
+      <field type="uint8_t" name="critical_entries">CRITICAL entries this flight (CRITICAL latches at N_crit_max); reset on disarm.</field>
+      <field type="uint8_t" name="flags" enum="GOOSE_STATE_FLAGS" display="bitmask">Armed and MANUAL flags.</field>
+      <field type="uint8_t[8]" name="sensor_status">Per-sensor GOOSE_SENSOR_STATUS, indexed by GOOSE_SENSOR_INDEX.</field>
+    </message>
+    <message id="23101" name="GOOSE_LOG">
+      <description>One logger record, payload unchanged, so the ground can decode it with the Logging_Subsystem decoder table.</description>
+      <field type="uint32_t" name="time_boot_ms" units="ms">Logger timestamp.</field>
+      <field type="uint8_t" name="system">Logger system code.</field>
+      <field type="uint8_t" name="subsystem">Logger subsystem code.</field>
+      <field type="uint8_t" name="level" enum="GOOSE_LOG_LEVEL">Logger level.</field>
+      <field type="uint8_t" name="len">Number of valid bytes in payload.</field>
+      <field type="uint8_t[64]" name="payload">Logger payload; bytes past len are zero (MAVLink 2 trims trailing zeros on the wire).</field>
+    </message>
+  </messages>
+</mavlink>
