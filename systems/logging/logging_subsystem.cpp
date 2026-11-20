@@ -30,6 +30,7 @@ bool initialize_sd() {
         Serial.println("[ERROR] Buffer initialization failed!");
         return false;
     }
+    packet_drop = 0; // fresh buffer, fresh drop count
     if (!myFile.open(filename, O_WRONLY | O_CREAT | O_AT_END)) {
         Serial.println("[ERROR] Could not open log file.");
         return false;

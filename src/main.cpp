@@ -1,6 +1,6 @@
 #include <Arduino.h>
-#include "../systems/Logging_Subsystem/logging_subsystem.h"
-#include "../systems/Logging_Subsystem/logging_interface.h"
+#include "logging_subsystem.h"
+#include "logging_interface.h"
 
 static ImuLogger imu_logger;
 static BaroLogger baro_logger;

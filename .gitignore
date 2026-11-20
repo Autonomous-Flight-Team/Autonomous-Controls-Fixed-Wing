@@ -434,4 +434,4 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
-.aider*
+.aider*datalog.bin
