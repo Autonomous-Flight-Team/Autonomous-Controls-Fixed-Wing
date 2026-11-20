@@ -36,6 +36,19 @@ void test_crsf_anchor_points() {
     TEST_ASSERT_EQUAL_UINT16(2012, crsf_ticks_to_us(1811));
 }
 
+// Values from ExpressLRS's own CRSF_to_US() (crsf_protocol.h fmap),
+// including ticks where a 0.625 slope is 1 µs off (173, 1000, 1500) and
+// the extended-limits range outside 172..1811.
+void test_crsf_matches_expresslrs() {
+    const uint16_t ticks[] = {0,   100, 172,  173,  500,  992,
+                              1000, 1500, 1811, 1984, 2047};
+    const uint16_t us[] = {881,  944,  988,  989,  1193, 1500,
+                           1505, 1818, 2012, 2120, 2159};
+    for (size_t i = 0; i < sizeof(ticks) / sizeof(ticks[0]); ++i) {
+        TEST_ASSERT_EQUAL_UINT16(us[i], crsf_ticks_to_us(ticks[i]));
+    }
+}
+
 void test_crsf_monotonic() {
     uint16_t prev = crsf_ticks_to_us(172);
     for (uint16_t t = 173; t <= 1811; ++t) {
@@ -132,6 +145,7 @@ void test_rc_telemetry_us() {
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_crsf_anchor_points);
+    RUN_TEST(test_crsf_matches_expresslrs);
     RUN_TEST(test_crsf_monotonic);
     RUN_TEST(test_rc_lost_before_first_frame);
     RUN_TEST(test_rc_lost_on_timeout);

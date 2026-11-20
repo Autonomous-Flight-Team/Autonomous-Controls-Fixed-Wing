@@ -8,8 +8,10 @@
 // Faults: only the raw kRcLost bit comes from here; FaultManager debounces
 // (debounce_ms), escalates (t_rc) and the FSMs respond.
 
-// CRSF 11-bit ticks -> µs (172 -> 988, 992 -> 1500, 1811 -> 2012).
-// For rc_link and its tests; kept here so both sides use one formula.
+// CRSF 11-bit ticks -> µs, bit-identical to ExpressLRS CRSF_to_US() (the
+// ER8's own PWM outputs): 172 -> 988, 992 -> 1500, 1811 -> 2012.
+// rc_link must call this rather than its own formula, so mirroring
+// matches the receiver exactly.
 uint16_t crsf_ticks_to_us(uint16_t ticks);
 
 // Raw FaultId::kRcLost condition for this loop.

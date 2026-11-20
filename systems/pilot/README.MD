@@ -13,7 +13,7 @@ Manual controls never parses a link. Comms reports facts; the decisions are made
 
 - **No failsafe flag:** an ELRS receiver just stops sending frames when it loses the transmitter. `rc_lost_raw()` is true with no frame yet, no frame for `rc_timeout_ms`, or LQ at or below `min_link_quality`. `FaultManager` does the debouncing (`debounce_ms`) and escalation (`t_rc`).
 - **`manual_active`** comes from the CH7 bypass switch while the frame is fresh. A stale frame reads as not manual, because the ER8 failsafe puts CH7 on the Teensy side. Swap in a SEL sense input if one is added.
-- **CRSF → µs:** `crsf_ticks_to_us()` is `0.625 * ticks + 880` rounded to nearest (172 → 988, 992 → 1500, 1811 → 2012). `rc_link` must use this function, so mirroring matches the receiver's own pulses. Plain integer truncation gives 2011 at 1811.
+- **CRSF → µs:** `crsf_ticks_to_us()` uses the same integer math as ExpressLRS `CRSF_to_US()`, which the ER8 uses for its own PWM outputs (172 → 988, 992 → 1500, 1811 → 2012, rounded straight line). `rc_link` must use this function, so mirroring matches the receiver exactly. A 0.625 slope matches the three anchors but is 1 µs off at about a quarter of the ticks in between.
 
 ## Usage
 

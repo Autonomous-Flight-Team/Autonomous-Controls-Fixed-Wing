@@ -1,10 +1,16 @@
 #include "pilot.h"
 
 uint16_t crsf_ticks_to_us(uint16_t ticks) {
-    // us = 0.625 * ticks + 880, rounded to nearest (half up), in integers.
-    // Plain truncation of 1500 + (ticks - 992) * 5 / 8 gives 2011 at 1811.
-    const uint32_t scaled = static_cast<uint32_t>(ticks) * 5u + 7040u + 4u;
-    return static_cast<uint16_t>(scaled / 8u);
+    // Same integer math as ExpressLRS CRSF_to_US() (fmap() in
+    // src/include/crsf_protocol.h), which the ER8 uses for its PWM outputs:
+    // 172..1811 ticks -> 988..2012 µs, rounded. A 0.625 slope matches at
+    // 172/992/1811 but is 1 µs off at about a quarter of the ticks between.
+    constexpr int32_t kInMin = 172, kInMax = 1811;
+    constexpr int32_t kOutMin = 988, kOutMax = 2012;
+    const int32_t scaled = (static_cast<int32_t>(ticks) - kInMin) *
+                           (kOutMax - kOutMin) * 2 / (kInMax - kInMin);
+    const int32_t us = (scaled + kOutMin * 2 + 1) / 2;
+    return us < 0 ? 0 : static_cast<uint16_t>(us > 65535 ? 65535 : us);
 }
 
 bool rc_lost_raw(const RcLinkStatus& link, const PilotParams& p,

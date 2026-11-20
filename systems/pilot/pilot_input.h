@@ -30,7 +30,7 @@ struct PilotInput {
     float flaps = 0.0f;    // [0, 1]
     uint16_t switches = 0; // bit = PilotSwitch value
     // Receiver channels in µs, for mirroring. rc_link converts CRSF ticks
-    // with crsf_ticks_to_us() (pilot.h): 0.625 * ticks + 880, rounded.
+    // with crsf_ticks_to_us() (pilot.h), identical to ExpressLRS CRSF_to_US.
     uint16_t raw_us[kMaxRcChannels] = {};
     uint8_t num_raw = 0;
     uint32_t stamp_ms = 0; // when the producer received the frame
