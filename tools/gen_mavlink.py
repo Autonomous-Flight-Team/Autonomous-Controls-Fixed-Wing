@@ -30,18 +30,14 @@ OUT_DIR = MAV_DIR / "generated"
 
 
 def main() -> int:
-    # goose.xml includes common.xml, which mavgen looks for next to goose.xml, so put
-    # pymavlink's bundled definitions and goose.xml together in one scratch folder.
-    defs = Path(pymavlink.__file__).parent / "message_definitions" / "v1.0"
+    # goose.xml includes common.xml (-> standard.xml -> minimal.xml). Those are vendored
+    # next to goose.xml, copied from pymavlink 2.4.50, because some pymavlink installs
+    # (e.g. Linux wheels) ship without message_definitions/.
     with tempfile.TemporaryDirectory(prefix="goose_mavgen_") as work:
-        for xml in defs.glob("*.xml"):
-            shutil.copy(xml, work)
-        shutil.copy(MAV_DIR / "goose.xml", work)
-
         # Generate into the scratch folder first, so a failed run leaves the old headers.
         new_out = Path(work) / "generated"
         opts = mavgen.Opts(str(new_out), wire_protocol=mavparse.PROTOCOL_2_0, language="C")
-        if not mavgen.mavgen(opts, [str(Path(work) / "goose.xml")]):
+        if not mavgen.mavgen(opts, [str(MAV_DIR / "goose.xml")]):
             print("mavgen failed; existing headers left unchanged", file=sys.stderr)
             return 1
 

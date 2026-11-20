@@ -390,9 +390,8 @@ struct RecordingSink : BenchServoSink
     }
 };
 
-struct FakeOutputs : TelemetrySource
+struct FakeOutputs : TelemetrySource // no goose_state(): a sensor source need not implement it
 {
-    bool goose_state(GooseStateSnapshot &) override { return false; }
     bool servo_outputs(ServoOutputSample &o) override
     {
         o = ServoOutputSample();

@@ -36,15 +36,11 @@ FORCE_MAGIC = 21196
 
 def load_goose_dialect():
     """Generate the Python module for goose.xml (with common.xml) and make mavutil use it."""
+    # common.xml and its includes are vendored next to goose.xml (some pymavlink installs
+    # ship without message_definitions/).
     work = tempfile.mkdtemp(prefix="goose_dialect_")
-    defs = os.path.join(os.path.dirname(pymavlink.__file__), "message_definitions", "v1.0")
-    for name in os.listdir(defs):
-        if name.endswith(".xml"):
-            shutil.copy(os.path.join(defs, name), work)
-    shutil.copy(GOOSE_XML, work)
     out = os.path.join(work, "goose.py")
-    mavgen.mavgen(mavgen.Opts(output=out, wire_protocol="2.0", language="Python3", validate=False),
-                  [os.path.join(work, "goose.xml")])
+    mavgen.mavgen(mavgen.Opts(output=out, wire_protocol="2.0", language="Python3", validate=False), [GOOSE_XML])
     sys.path.insert(0, work)
     import goose  # noqa: E402  (generated above)
     sys.path.remove(work)

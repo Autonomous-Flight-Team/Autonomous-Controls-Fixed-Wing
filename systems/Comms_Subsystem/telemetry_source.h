@@ -95,7 +95,8 @@ class TelemetrySource
 {
 public:
     virtual ~TelemetrySource() = default;
-    virtual bool goose_state(GooseStateSnapshot &out) = 0;
+    // StateBridge supplies this from the FSMs; a sensor source passed to StateBridge can leave it out.
+    virtual bool goose_state(GooseStateSnapshot &) { return false; }
     virtual bool attitude(AttitudeSample &) { return false; }
     virtual bool position(PositionSample &) { return false; }
     virtual bool gps(GpsSample &) { return false; }
