@@ -1,7 +1,46 @@
 # Two-agent radio link test: handoff
 
 How to pick this work back up from scratch, for a person or for a new Claude session on either machine.
-Last updated 2026-11-18. Branch: `communications`.
+Last updated 2026-11-19. Branch: `communications`.
+
+## Update 2026-11-19: real Teensy firmware over the radio link passes
+
+The range test was dropped. `air_sim.py` is replaced by the real firmware (`src/main.cpp`, dummy telemetry +
+stub command handler) on a Teensy 4.1. **`comms_bench.py` on the Mac: every check `ok`.**
+
+| Radio | Connected to | Antenna |
+|---|---|---|
+| Former ground radio | Teensy `Serial1` | 900 MHz whip |
+| Former air radio | Mac, FTDI USB-C cable, `/dev/cu.usbserial-AB99E02P` | Yagi |
+
+**Teensy wiring:** Teensy TX1 (pin 1) → radio pin 7, RX1 (pin 0) → radio pin 9, GND → pin 1, **VIN → pin 4**
+(the radio runs off the Teensy's USB 5 V; fine at S4=20, keep S4 ≤ 20 on this supply). 1000 µF / 10 V
+capacitor across 5 V and GND at the radio header. The first try had TX/RX swapped: the symptom is Teensy
+`STATS` showing `rx 0` and `rssi 0/0` while the Mac sees remote RSSI (radios paired, UART not).
+
+**Key:** Teensy USB console (115200, port `/dev/cu.usbmodem*`, *not* the radio's `usbserial`), then
+`KEY b0ed36e0be33790210b092eb38c1dda97f588d7a0daaa51f570949024a1fb4ee` (SHA-256 of `bench-test-only`),
+`KEY?` → `bc1fd57beea0`. Stored in EEPROM, active immediately.
+
+**Bug found and fixed:** `comms_update()` detected GOOSE_STATE changes with `memcmp` over
+`GooseStateSnapshot`, which has padding bytes holding stale stack data. On the Teensy every loop looked like a
+change, so GOOSE_STATE (unbudgeted) went out every iteration and saturated the UART: radio `txbuf` 4 %, Mac
+loss 99 %. Now compared field by field (`same_state()` in `comms.cpp`), with a regression test
+`test_unchanged_state_is_not_resent` (15/15 native tests pass). Native tests never caught it because the
+padding happened to stay constant on the Mac.
+
+**Results** (same room, 100 mW): `link_logger.py` link UP, 28–30 msg/s, 0.0 % loss, rssi 206/206 (saturated).
+`comms_bench.py --device /dev/cu.usbserial-AB99E02P --baud 57600 --key bench-test-only --allow-arm
+--link-timeout 1800` (run with `uv run --no-project --with pymavlink==2.4.50 --with pyserial`): all telemetry
+rates match `comms_config.h`, every command/BENCH/fault/rate check `ok`, unsigned and wrong-key commands get no
+ACK, signing good 2153 / bad 128 (the wrong-key phase) / unsigned 162 (RADIO_STATUS).
+
+**Half duplex** needs no app-level handling: SiK TDM alternates air time between the radios and both serial
+ports behave as full duplex. Commands and ACKs went through while telemetry streamed at full rate.
+
+Next: separate the radios (RSSI still saturated), then swap the dummy telemetry for `StateBridge`. ESP32 port
+later needs `EEPROM.begin()/commit()`, explicit `Serial1` pins and `setTxBufferSize()` instead of
+`addMemoryForWrite`.
 
 ## Update 2026-11-18 (later): two RFD900x radios, real radio link next
 

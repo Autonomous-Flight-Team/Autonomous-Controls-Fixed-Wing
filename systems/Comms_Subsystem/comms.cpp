@@ -103,6 +103,15 @@ static uint32_t boot_ms(uint64_t now_us) { return (uint32_t)((now_us - g.init_us
 
 static bool is_armed(const GooseStateSnapshot &s) { return goose_system_armed(s.system_state); } // not >=: IN_AIR_RESET is 20
 
+// Field by field, never memcmp: the struct has padding bytes holding stale stack data,
+// which made every update look like a change and flooded the link with GOOSE_STATE.
+static bool same_state(const GooseStateSnapshot &a, const GooseStateSnapshot &b)
+{
+    return a.system_state == b.system_state && a.flight_state == b.flight_state && a.active_faults == b.active_faults &&
+           a.critical_entries == b.critical_entries && a.flags == b.flags &&
+           memcmp(a.sensor_status, b.sensor_status, sizeof(a.sensor_status)) == 0;
+}
+
 static bool accept_unsigned_cb(const mavlink_status_t *, uint32_t)
 {
     // Accept at the library level and decide in dispatch(), where the whole frame
@@ -761,7 +770,7 @@ void comms_update()
     {
         // ARMED always follows the armed set, whatever the source filled in.
         s.flags = (uint8_t)((s.flags & ~GOOSE_STATE_FLAGS_ARMED) | (is_armed(s) ? GOOSE_STATE_FLAGS_ARMED : 0));
-        if (!g.state_valid || memcmp(&s, &g.last_sent_state, sizeof(s)) != 0)
+        if (!g.state_valid || !same_state(s, g.last_sent_state))
             g.state_changed = true;
         bool armed = is_armed(s);
         if (g.was_armed && !armed)

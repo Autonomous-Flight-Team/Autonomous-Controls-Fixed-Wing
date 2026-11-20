@@ -704,6 +704,48 @@ static void test_radio_txbuf_slows_streams()
     TEST_ASSERT_INT_WITHIN(2, 20, count_rx(MAVLINK_MSG_ID_ATTITUDE));
 }
 
+// A telemetry source that fills the snapshot's padding with different junk on every
+// call, as an uninitialised stack variable on the Teensy does.
+class PaddingJunkTelemetry : public DummyTelemetrySource
+{
+public:
+    bool goose_state(GooseStateSnapshot &out) override
+    {
+        GooseStateSnapshot real;
+        DummyTelemetrySource::goose_state(real);
+        memset(&out, ++junk_, sizeof(out));
+        out.system_state = real.system_state;
+        out.flight_state = real.flight_state;
+        out.active_faults = real.active_faults;
+        out.critical_entries = real.critical_entries;
+        out.flags = real.flags;
+        memcpy(out.sensor_status, real.sensor_status, sizeof(out.sensor_status));
+        return true;
+    }
+
+private:
+    uint8_t junk_ = 0;
+};
+
+static void test_unchanged_state_is_not_resent()
+{
+    PaddingJunkTelemetry tel;
+    comms_init(g_vehicle_end, tel, g_handler, CommsConfig());
+    auto run = [&](int loops) {
+        for (int i = 0; i < loops; i++) // 5 ms loops
+        {
+            comms_test_advance_us(5000);
+            tel.update((uint32_t)(comms_time_us() / 1000));
+            comms_update();
+            gcs_collect();
+        }
+    };
+    run(300); // 1.5 s: settles PREFLIGHT -> STANDBY
+    g_rx.clear();
+    run(400); // 2 s with an unchanged state
+    TEST_ASSERT_INT_WITHIN(1, 4, count_rx(MAVLINK_MSG_ID_GOOSE_STATE)); // the 2 Hz stream only
+}
+
 static void test_parser_survives_noise_and_loss()
 {
     boot(TEST_KEY, true);
@@ -764,5 +806,6 @@ int main(int, char **)
     RUN_TEST(test_back_pressure_never_blocks);
     RUN_TEST(test_radio_txbuf_slows_streams);
     RUN_TEST(test_parser_survives_noise_and_loss);
+    RUN_TEST(test_unchanged_state_is_not_resent);
     return UNITY_END();
 }
