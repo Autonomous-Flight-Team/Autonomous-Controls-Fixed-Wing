@@ -273,6 +273,19 @@ void test_console_end_to_end() {
     TEST_ASSERT_EQUAL_UINT16(1450, out.us[kElev]);
 }
 
+// Comms' BenchServoSink: MAVLink servos are numbered from 1.
+void test_set_servo_1based() {
+    BenchSetpoints sp(g_ch, kN);
+    TEST_ASSERT_TRUE(sp.set_servo_1based(kElev + 1, 1700));
+    uint16_t us = 0;
+    TEST_ASSERT_TRUE(sp.get_us(kElev, &us));
+    TEST_ASSERT_EQUAL_UINT16(1700, us);
+    TEST_ASSERT_FALSE(sp.set_servo_1based(0, 1500));          // no servo 0
+    TEST_ASSERT_FALSE(sp.set_servo_1based(kThr + 1, 1100));   // motor locked
+    TEST_ASSERT_FALSE(sp.set_servo_1based(kElev + 1, 1950));  // over max
+    TEST_ASSERT_FALSE(sp.set_servo_1based(kN + 1, 1500));     // no channel
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_unset_reads_trim);
@@ -289,5 +302,6 @@ int main(int, char**) {
     RUN_TEST(test_console_setpoints_dont_touch_bridge);
     RUN_TEST(test_console_passes_unknown_lines_on);
     RUN_TEST(test_console_end_to_end);
+    RUN_TEST(test_set_servo_1based);
     return UNITY_END();
 }

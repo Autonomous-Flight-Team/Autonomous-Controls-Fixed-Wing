@@ -32,4 +32,16 @@ bool manual_active(const PilotInput& in, bool fresh);
 bool mirror_us(const PilotInput& in, bool fresh, int8_t rc_channel,
                uint16_t* out_us);
 
+// ---- For comms telemetry (RcInputSample -> RC_CHANNELS) ----
+
+constexpr uint8_t kLinkQualityUnknown = 255;
+
+// 0-100 once frames have been seen, kLinkQualityUnknown before.
+uint8_t rc_link_quality_pct(const RcLinkStatus& link);
+
+// Copies the receiver µs for telemetry. Returns the count: 0 if the frame
+// is stale, so the GCS shows no RC rather than the last good sticks.
+uint8_t rc_telemetry_us(const PilotInput& in, bool fresh, uint16_t* us,
+                        uint8_t cap);
+
 #endif // PILOT_H_

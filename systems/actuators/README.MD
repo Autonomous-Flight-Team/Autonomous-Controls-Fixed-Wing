@@ -55,6 +55,23 @@ for (uint8_t i = 0; i < frame.num_channels; ++i)
 
 At startup, call `pwm_out::begin(pins, n, safe)` with `actuators.safe_us(safe)` before anything else, so outputs never float. Feed `actuators.preflight_ok(now_ms)` into `SystemInputs::preflight_ok`.
 
+## Telemetry to comms
+
+Comms sends `SERVO_OUTPUT_RAW` and `RC_CHANNELS` (2 Hz each) from the sensors `TelemetrySource` passed to the `StateBridge` constructor, the same way it sends attitude and GPS. Comms stamps the time itself. Fill the samples in that source (`src/`, main wiring):
+
+```cpp
+bool servo_outputs(ServoOutputSample& s) override {
+    s.count = output_telemetry_us(frame, s.us, 16); // what pwm_out was told
+    return s.count > 0;
+}
+
+bool rc_inputs(RcInputSample& s) override {
+    s.count = rc_telemetry_us(rc, rc_fresh, s.us, 18); // 0 when stale
+    s.link_quality_pct = rc_link_quality_pct(rc_link_status()); // 255 = unknown
+    return true; // a lost link still reports LQ 0 and no channels
+}
+```
+
 ## Tests
 
 `test/test_actuators` (units) and `test/test_manual_controls` (integration: pilot → FaultManager → both FSMs → Actuators, wired as in the state README's Usage section).

@@ -51,6 +51,10 @@ struct OutputFrame {
     ThrottleCmd throttle{}; // what the throttle channel was told
 };
 
+// For comms telemetry (ServoOutputSample -> SERVO_OUTPUT_RAW): copies the
+// µs actually sent. Returns the count (at most cap).
+uint8_t output_telemetry_us(const OutputFrame& f, uint16_t* us, uint8_t cap);
+
 class Actuators {
   public:
     // cfg must pass actuator_config_valid(); otherwise every update()

@@ -4,7 +4,7 @@
 
 Moves the surfaces in BENCH without MAVLink.
 
-- **`BenchSetpoints`**: surface setpoints, range-checked against each channel's min/max. One object in `main`, written by the USB console and (once comms adds it) MAVLink `DO_SET_SERVO` through `StateBridge`. `Actuators` reads them only in BENCH.
+- **`BenchSetpoints`**: surface setpoints, range-checked against each channel's min/max. One object in `main`, written by the USB console and by MAVLink `DO_SET_SERVO` (comms' `BenchServoSink`). `Actuators` reads them only in BENCH.
 - **`bench_console`**: USB console commands, chained after `comms_console_line()`.
 
 | Command | Does |
@@ -22,6 +22,28 @@ Moves the surfaces in BENCH without MAVLink.
 - **Console arming needs no MAVLink signing** (it needs a physical cable). Replies are tagged `USB` so the source shows up in logs.
 - `bench_console_line()` is a template on the bridge type, so it builds without comms on the branch. Any type with `arm(bool, bool)`, `bench(bool)` and `fault_clear()` returning `MAV_RESULT` works.
 - Setpoints persist after leaving BENCH. Call `center_all()` on exit if they shouldn't come back next time.
+
+## MAVLink DO_SET_SERVO
+
+Comms (`command_handler.h`) defines the interface `BenchServoSink`. Comms rejects malformed values (servo not 1–16, not an integer, out of range) before calling it. `StateBridge` only passes values through while the system is in BENCH with no exit pending. Servo numbers are 1-based, as in MAVLink. Limits are checked here: `false` sends DENIED back to the ground.
+
+Comms' interfaces are virtual, so the adapter lives in `src/` (main wiring), not in this pure library:
+
+```cpp
+class BenchSink : public BenchServoSink {
+  public:
+    explicit BenchSink(BenchSetpoints& sp) : m_sp(sp) {}
+    bool set_bench_servo(uint8_t servo, uint16_t pwm_us) override {
+        return m_sp.set_servo_1based(servo, pwm_us);
+    }
+
+  private:
+    BenchSetpoints& m_sp;
+};
+
+static BenchSink bench_sink(bench);
+bridge.set_bench_servo_sink(&bench_sink);
+```
 
 ## Usage
 

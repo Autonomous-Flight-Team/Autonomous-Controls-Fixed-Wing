@@ -18,6 +18,12 @@ class BenchSetpoints {
     // Range-checked against the channel's min/max. Cancels a sweep on it.
     bool set_us(uint8_t channel, uint16_t us, uint32_t now_ms);
 
+    // MAVLink DO_SET_SERVO numbers outputs from 1: servo 1 = channel 0.
+    // Called by the BenchServoSink adapter in main (comms' interface).
+    // Comms has already rejected malformed values and only calls this in
+    // BENCH; limits are checked here. false -> DENIED to the ground.
+    bool set_servo_1based(uint8_t servo, uint16_t us);
+
     // Every channel back to trim; stops sweeps.
     void center_all();
 

@@ -352,6 +352,17 @@ void test_in_air_reset_mirrors_pilot_with_motor_stopped() {
     TEST_ASSERT_EQUAL_UINT16(1000, h.out.us[kThr]); // disarmed per the FSM
 }
 
+// Comms' ServoOutputSample gets exactly what pwm_out was told.
+void test_output_telemetry_matches_frame() {
+    Harness h;
+    h.to_standby();
+    uint16_t us[16] = {};
+    TEST_ASSERT_EQUAL_UINT8(kN, output_telemetry_us(h.out, us, 16));
+    TEST_ASSERT_EQUAL_UINT16_ARRAY(h.out.us, us, kN);
+    TEST_ASSERT_EQUAL_UINT8(3, output_telemetry_us(h.out, us, 3));
+    TEST_ASSERT_EQUAL_UINT8(0, output_telemetry_us(h.out, nullptr, 16));
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_select_source_table);
@@ -368,5 +379,6 @@ int main(int, char**) {
     RUN_TEST(test_handback_from_manual_is_bumpless);
     RUN_TEST(test_stale_rc_is_not_manual);
     RUN_TEST(test_in_air_reset_mirrors_pilot_with_motor_stopped);
+    RUN_TEST(test_output_telemetry_matches_frame);
     return UNITY_END();
 }

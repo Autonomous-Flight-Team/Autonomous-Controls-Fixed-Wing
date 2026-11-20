@@ -32,6 +32,26 @@ bool manual_active(const PilotInput& in, bool fresh) {
     return fresh && switch_on(in, PilotSwitch::kBypass);
 }
 
+uint8_t rc_link_quality_pct(const RcLinkStatus& link) {
+    if (!link.frames_seen) {
+        return kLinkQualityUnknown;
+    }
+    return link.link_quality > 100 ? 100 : link.link_quality;
+}
+
+uint8_t rc_telemetry_us(const PilotInput& in, bool fresh, uint16_t* us,
+                        uint8_t cap) {
+    if (!fresh || us == nullptr) {
+        return 0;
+    }
+    uint8_t n = in.num_raw < cap ? in.num_raw : cap;
+    n = n < kMaxRcChannels ? n : kMaxRcChannels;
+    for (uint8_t i = 0; i < n; ++i) {
+        us[i] = in.raw_us[i];
+    }
+    return n;
+}
+
 bool mirror_us(const PilotInput& in, bool fresh, int8_t rc_channel,
                uint16_t* out_us) {
     if (!fresh || rc_channel < 0 || out_us == nullptr) {

@@ -106,6 +106,29 @@ void test_mirror_us() {
     TEST_ASSERT_FALSE(mirror_us(in, true, 2, nullptr));
 }
 
+void test_link_quality_for_telemetry() {
+    RcLinkStatus s;
+    TEST_ASSERT_EQUAL_UINT8(kLinkQualityUnknown, rc_link_quality_pct(s));
+    s.frames_seen = true;
+    s.link_quality = 87;
+    TEST_ASSERT_EQUAL_UINT8(87, rc_link_quality_pct(s));
+    s.link_quality = 0; // seen, now lost: a real 0, not unknown
+    TEST_ASSERT_EQUAL_UINT8(0, rc_link_quality_pct(s));
+    s.link_quality = 140;
+    TEST_ASSERT_EQUAL_UINT8(100, rc_link_quality_pct(s));
+}
+
+void test_rc_telemetry_us() {
+    const PilotInput in = frame(0);
+    uint16_t us[18] = {};
+    TEST_ASSERT_EQUAL_UINT8(8, rc_telemetry_us(in, true, us, 18));
+    TEST_ASSERT_EQUAL_UINT16(1100, us[0]);
+    TEST_ASSERT_EQUAL_UINT16(1800, us[7]);
+    TEST_ASSERT_EQUAL_UINT8(4, rc_telemetry_us(in, true, us, 4));
+    TEST_ASSERT_EQUAL_UINT8(0, rc_telemetry_us(in, false, us, 18));
+    TEST_ASSERT_EQUAL_UINT8(0, rc_telemetry_us(in, true, nullptr, 18));
+}
+
 int main(int, char**) {
     UNITY_BEGIN();
     RUN_TEST(test_crsf_anchor_points);
@@ -117,5 +140,7 @@ int main(int, char**) {
     RUN_TEST(test_fresh);
     RUN_TEST(test_bypass_switch_sets_manual_only_when_fresh);
     RUN_TEST(test_mirror_us);
+    RUN_TEST(test_link_quality_for_telemetry);
+    RUN_TEST(test_rc_telemetry_us);
     return UNITY_END();
 }

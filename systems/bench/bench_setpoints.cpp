@@ -42,6 +42,13 @@ bool BenchSetpoints::set_us(uint8_t channel, uint16_t us, uint32_t now_ms) {
     return true;
 }
 
+bool BenchSetpoints::set_servo_1based(uint8_t servo, uint16_t us) {
+    if (servo == 0) {
+        return false;
+    }
+    return set_us(static_cast<uint8_t>(servo - 1), us, 0);
+}
+
 void BenchSetpoints::center_all() {
     m_set_mask = 0;
     m_sweep_mask = 0;

@@ -38,6 +38,17 @@ bool actuator_config_valid(const ActuatorConfig& cfg) {
     return esc_config_valid(cfg.esc, cfg.channels[thr]);
 }
 
+uint8_t output_telemetry_us(const OutputFrame& f, uint16_t* us, uint8_t cap) {
+    if (us == nullptr) {
+        return 0;
+    }
+    const uint8_t n = f.num_channels < cap ? f.num_channels : cap;
+    for (uint8_t i = 0; i < n; ++i) {
+        us[i] = f.us[i];
+    }
+    return n;
+}
+
 Actuators::Actuators(const ActuatorConfig& cfg) : m_cfg(cfg) {
     m_ok = actuator_config_valid(cfg);
     m_thr = m_ok ? find_throttle(cfg) : -1;
