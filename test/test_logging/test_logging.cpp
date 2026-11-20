@@ -283,6 +283,74 @@ void test_write_to_sd_fails_when_file_is_closed(void) {
     TEST_ASSERT_FALSE(write_to_sd(true));
 }
 
+// ---- additional SD write / sync edge cases ---------------------------------
+
+void test_exactly_one_sector_written_without_force(void) {
+    for (int i = 0; i < 16; i++) {
+        log_n_byte_payload(P20); // 16 * 32 = 512 bytes queued
+    }
+    TEST_ASSERT_TRUE(write_to_sd());
+    TEST_ASSERT_EQUAL_UINT32(1, g_sd.write_sizes.size());
+    TEST_ASSERT_EQUAL_UINT32(512, g_sd.write_sizes[0]);
+    TEST_ASSERT_EQUAL_UINT32(512, g_sd.data.size());
+}
+
+void test_multiple_sectors_written_in_one_call(void) {
+    for (int i = 0; i < 50; i++) {
+        log_n_byte_payload(P20); // 50 * 32 = 1600 bytes queued
+    }
+    TEST_ASSERT_TRUE(write_to_sd());
+    TEST_ASSERT_EQUAL_UINT32(3, g_sd.write_sizes.size()); // 3 * 512 = 1536
+    for (size_t i = 0; i < g_sd.write_sizes.size(); i++) {
+        TEST_ASSERT_EQUAL_UINT32(512, g_sd.write_sizes[i]);
+    }
+    TEST_ASSERT_EQUAL_UINT32(1536, g_sd.data.size()); // 64 bytes left queued
+
+    TEST_ASSERT_TRUE(write_to_sd(true));
+    TEST_ASSERT_EQUAL_UINT32(1600, g_sd.data.size());
+}
+
+void test_force_on_empty_buffer_succeeds_and_syncs(void) {
+    int syncs = g_sd.sync_calls;
+    TEST_ASSERT_TRUE(write_to_sd(true));
+    TEST_ASSERT_EQUAL_UINT32(0, g_sd.data.size());
+    TEST_ASSERT_EQUAL_UINT32(0, g_sd.write_sizes.size());
+    TEST_ASSERT_EQUAL_INT(syncs + 1, g_sd.sync_calls);
+}
+
+void test_sync_timer_survives_millis_wraparound(void) {
+    const uint32_t T = 0xFFFFFF00; // millis() wraps ~49.7 days after boot
+    g_millis = T;
+    write_to_sd(true); // forced sync sets the baseline
+    int base = g_sd.sync_calls;
+
+    g_millis = T + 999; // wraps past 0
+    write_to_sd();
+    TEST_ASSERT_EQUAL_INT(base, g_sd.sync_calls); // too soon
+
+    g_millis = T + 1000;
+    write_to_sd();
+    TEST_ASSERT_EQUAL_INT(base + 1, g_sd.sync_calls);
+}
+
+void test_logging_recovers_after_write_failure(void) {
+    log_n_byte_payload(P20);
+    g_sd.fail_write = true;
+    TEST_ASSERT_FALSE(write_to_sd(true));
+
+    g_sd.fail_write = false;
+    g_millis = 0x0A0B0C0D;
+    uint8_t b = 7;
+    TEST_ASSERT_TRUE(log_message(SENSOR, SUB_BARO, LOG_WARN, &b, 1));
+    TEST_ASSERT_TRUE(write_to_sd(true));
+
+    // The new packet must reach the card intact.
+    Bytes expected = make_packet(SENSOR, SUB_BARO, LOG_WARN, 0x0A0B0C0D, {7});
+    TEST_ASSERT_TRUE(g_sd.data.size() >= expected.size());
+    Bytes tail(g_sd.data.end() - expected.size(), g_sd.data.end());
+    assert_bytes(expected, tail);
+}
+
 int main(int, char **) {
     UNITY_BEGIN();
     RUN_TEST(test_init_opens_log_file_in_append_mode);
@@ -310,5 +378,10 @@ int main(int, char **) {
     RUN_TEST(test_sync_happens_at_most_once_per_second);
     RUN_TEST(test_close_flushes_everything_then_closes);
     RUN_TEST(test_write_to_sd_fails_when_file_is_closed);
+    RUN_TEST(test_exactly_one_sector_written_without_force);
+    RUN_TEST(test_multiple_sectors_written_in_one_call);
+    RUN_TEST(test_force_on_empty_buffer_succeeds_and_syncs);
+    RUN_TEST(test_sync_timer_survives_millis_wraparound);
+    RUN_TEST(test_logging_recovers_after_write_failure);
     return UNITY_END();
 }
