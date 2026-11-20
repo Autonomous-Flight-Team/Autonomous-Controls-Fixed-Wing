@@ -351,6 +351,47 @@ void test_logging_recovers_after_write_failure(void) {
     assert_bytes(expected, tail);
 }
 
+void test_failed_write_counts_lost_bytes(void) {
+    log_n_byte_payload(P20); // 32 bytes
+    g_sd.fail_write = true;
+    TEST_ASSERT_FALSE(write_to_sd(true));
+    TEST_ASSERT_EQUAL_UINT32(32, logging_lost_bytes());
+    TEST_ASSERT_EQUAL_UINT32(0, logging_dropped()); // buffer-full drops are separate
+}
+
+void test_failed_sector_write_counts_whole_sector(void) {
+    for (int i = 0; i < 20; i++) {
+        log_n_byte_payload(P20); // 640 bytes queued
+    }
+    g_sd.fail_write = true;
+    TEST_ASSERT_FALSE(write_to_sd());
+    TEST_ASSERT_EQUAL_UINT32(512, logging_lost_bytes()); // stops after first failure
+
+    g_sd.fail_write = false;
+    TEST_ASSERT_TRUE(write_to_sd(true)); // remaining 128 bytes still get written
+    TEST_ASSERT_EQUAL_UINT32(128, g_sd.data.size());
+    TEST_ASSERT_EQUAL_UINT32(512, logging_lost_bytes());
+}
+
+void test_successful_writes_lose_nothing(void) {
+    for (int i = 0; i < 50; i++) {
+        log_n_byte_payload(P20);
+    }
+    TEST_ASSERT_TRUE(write_to_sd(true));
+    TEST_ASSERT_EQUAL_UINT32(0, logging_lost_bytes());
+}
+
+void test_init_clears_lost_byte_count(void) {
+    log_n_byte_payload(P20);
+    g_sd.fail_write = true;
+    write_to_sd(true);
+    TEST_ASSERT_TRUE(logging_lost_bytes() > 0);
+
+    g_sd.reset();
+    TEST_ASSERT_TRUE(initialize_sd());
+    TEST_ASSERT_EQUAL_UINT32(0, logging_lost_bytes());
+}
+
 int main(int, char **) {
     UNITY_BEGIN();
     RUN_TEST(test_init_opens_log_file_in_append_mode);
@@ -383,5 +424,9 @@ int main(int, char **) {
     RUN_TEST(test_force_on_empty_buffer_succeeds_and_syncs);
     RUN_TEST(test_sync_timer_survives_millis_wraparound);
     RUN_TEST(test_logging_recovers_after_write_failure);
+    RUN_TEST(test_failed_write_counts_lost_bytes);
+    RUN_TEST(test_failed_sector_write_counts_whole_sector);
+    RUN_TEST(test_successful_writes_lose_nothing);
+    RUN_TEST(test_init_clears_lost_byte_count);
     return UNITY_END();
 }

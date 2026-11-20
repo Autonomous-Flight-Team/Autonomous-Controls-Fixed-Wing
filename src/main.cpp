@@ -39,6 +39,8 @@ void loop()
     if (report_timer >= 5000000UL)
     {
         report_timer = 0;
-        Serial.printf("dropped packets: %lu\n", (unsigned long)logging_dropped());
+        Serial.printf("dropped packets: %lu, lost bytes: %lu\n",
+                      (unsigned long)logging_dropped(),
+                      (unsigned long)logging_lost_bytes());
     }
 }

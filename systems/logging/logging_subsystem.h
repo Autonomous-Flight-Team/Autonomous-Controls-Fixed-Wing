@@ -51,6 +51,7 @@ static inline void put_be32(uint8_t *p, uint32_t v) {
 bool initialize_sd();
 bool write_to_sd(bool force = false);
 void logging_close();
-uint32_t logging_dropped();
+uint32_t logging_dropped();    // packets rejected because the ring buffer was full
+uint32_t logging_lost_bytes(); // bytes discarded because an SD write failed
 bool log_message(uint8_t system_code, uint8_t subsystem_code, uint8_t level,
                  const void *payload, uint8_t payload_len);

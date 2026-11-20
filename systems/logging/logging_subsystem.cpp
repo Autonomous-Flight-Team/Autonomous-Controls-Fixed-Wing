@@ -20,6 +20,7 @@ static RingBuffer logging_buffer;
 
 static const char *filename = "datalog.bin";
 static volatile uint32_t packet_drop = 0;
+static uint32_t bytes_lost = 0; // popped from the buffer but not written to SD
 
 bool initialize_sd() {
     if (!sd.begin(SdioConfig(FIFO_SDIO))) {
@@ -30,7 +31,8 @@ bool initialize_sd() {
         Serial.println("[ERROR] Buffer initialization failed!");
         return false;
     }
-    packet_drop = 0; // fresh buffer, fresh drop count
+    packet_drop = 0; // fresh buffer, fresh drop and loss counts
+    bytes_lost = 0;
     if (!myFile.open(filename, O_WRONLY | O_CREAT | O_AT_END)) {
         Serial.println("[ERROR] Could not open log file.");
         return false;
@@ -53,7 +55,11 @@ bool write_to_sd(bool force) {
         size_t n = 0;
         while (n < sizeof(chunk) && logging_buffer.ringbuf_pop(&buffer, &chunk[n]))
             n++;
-        if (myFile.write(chunk, n) != n) {
+        size_t written = myFile.write(chunk, n);
+        if (written != n) {
+            // The chunk has already left the ring buffer, so it is dropped;
+            // count it so the loss shows up in logging_lost_bytes().
+            bytes_lost += (written < n) ? (uint32_t)(n - written) : (uint32_t)n;
             Serial.println("[ERROR] SD write failed.");
             ok = false;
             break;
@@ -73,6 +79,8 @@ void logging_close() {
 }
 
 uint32_t logging_dropped() { return packet_drop; }
+
+uint32_t logging_lost_bytes() { return bytes_lost; }
 
 // Whole packet is pushed or none is
 static bool write_to_buffer(const uint8_t *data, size_t len) {
