@@ -10,13 +10,19 @@ stub command handler) on a Teensy 4.1. **`comms_bench.py` on the Mac: every chec
 
 | Radio | Connected to | Antenna |
 |---|---|---|
-| Former ground radio | Teensy `Serial1` | 900 MHz whip |
+| Former ground radio | Teensy `Serial1` (now `Serial3`, see below) | 900 MHz whip |
 | Former air radio | Mac, FTDI USB-C cable, `/dev/cu.usbserial-AB99E02P` | Yagi |
 
 **Teensy wiring:** Teensy TX1 (pin 1) → radio pin 7, RX1 (pin 0) → radio pin 9, GND → pin 1, **VIN → pin 4**
 (the radio runs off the Teensy's USB 5 V; fine at S4=20, keep S4 ≤ 20 on this supply). 1000 µF / 10 V
 capacitor across 5 V and GND at the radio header. The first try had TX/RX swapped: the symptom is Teensy
 `STATS` showing `rx 0` and `rssi 0/0` while the Mac sees remote RSSI (radios paired, UART not).
+
+**Radio moved to `Serial3` afterwards** (manual controls' pin map: Serial1 = GPS, Serial2 = ER8 CRSF). Rewire
+the data lines: Teensy **TX3 (pin 14) → radio pin 7**, **RX3 (pin 15) → radio pin 9**. Power and GND unchanged.
+**Re-run on Serial3 with the servo/RC interface added: every `comms_bench` check `ok`**, including SERVO_OUTPUT_RAW
+and RC_CHANNELS at 2.0 Hz, SET_SERVO accepted in BENCH (servo1 read back as 1800 µs) and denied outside BENCH.
+Signing good 2664 / bad 142 (wrong-key phase) / unsigned 174 (RADIO_STATUS); txbuf 100 %.
 
 **Key:** Teensy USB console (115200, port `/dev/cu.usbmodem*`, *not* the radio's `usbserial`), then
 `KEY b0ed36e0be33790210b092eb38c1dda97f588d7a0daaa51f570949024a1fb4ee` (SHA-256 of `bench-test-only`),
@@ -39,7 +45,7 @@ ACK, signing good 2153 / bad 128 (the wrong-key phase) / unsigned 162 (RADIO_STA
 ports behave as full duplex. Commands and ACKs went through while telemetry streamed at full rate.
 
 Next: separate the radios (RSSI still saturated), then swap the dummy telemetry for `StateBridge`. ESP32 port
-later needs `EEPROM.begin()/commit()`, explicit `Serial1` pins and `setTxBufferSize()` instead of
+later needs `EEPROM.begin()/commit()`, explicit radio UART pins and `setTxBufferSize()` instead of
 `addMemoryForWrite`.
 
 ## Update 2026-11-18 (later): two RFD900x radios, real radio link next

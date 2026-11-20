@@ -60,6 +60,7 @@ class Sim:
         self.t0 = time.monotonic()
         self._last_sys, self._sys_since = None, 0.0
         self._last_fl, self._fl_since = None, 0.0
+        self.servo_us = [1500, 1500, 1500, 1500, 1000, 1500]  # 6 outputs, ch5 throttle (as the dummy source)
 
     def ms(self):
         return int((time.monotonic() - self.t0) * 1000)
@@ -148,6 +149,14 @@ class Sim:
         self.system = m.GOOSE_SYSTEM_STATE_PREFLIGHT
         return m.MAV_RESULT_ACCEPTED
 
+    def set_servo(self, channel, pwm_us):
+        """Only in BENCH, outputs 1-6, 800-2200 us (as StubCommandHandler)."""
+        m = self.m
+        if self.system != m.GOOSE_SYSTEM_STATE_BENCH or not 1 <= channel <= 6 or not 800 <= pwm_us <= 2200:
+            return m.MAV_RESULT_DENIED
+        self.servo_us[channel - 1] = pwm_us
+        return m.MAV_RESULT_ACCEPTED
+
     def bench(self, enter):
         m = self.m
         if enter:
@@ -191,7 +200,9 @@ class Aircraft:
             (m.MAVLINK_MSG_ID_VFR_HUD, 250_000),
             (m.MAVLINK_MSG_ID_SCALED_IMU, 0),
             (m.MAVLINK_MSG_ID_SCALED_PRESSURE, 1_000_000),
-            (m.MAVLINK_MSG_ID_BATTERY_STATUS, 1_000_000))]
+            (m.MAVLINK_MSG_ID_BATTERY_STATUS, 1_000_000),
+            (m.MAVLINK_MSG_ID_SERVO_OUTPUT_RAW, 500_000),
+            (m.MAVLINK_MSG_ID_RC_CHANNELS, 500_000))]
         self.log_interval_request = 0
         self.acks = []       # (command, result, sys, comp), max 4
         self.events = []     # callables that send one frame, max 8
@@ -322,6 +333,10 @@ class Aircraft:
             return s.fault_clear()
         if cmd == m.MAV_CMD_GOOSE_BENCH:
             return s.bench(p[0] == 1) if p[0] in (0, 1) else m.MAV_RESULT_DENIED
+        if cmd == m.MAV_CMD_DO_SET_SERVO:
+            if p[0] != int(p[0]) or not 1 <= p[0] <= 16 or p[1] != int(p[1]) or not 1 <= p[1] <= 65535:
+                return m.MAV_RESULT_DENIED  # shape checks, as comms.cpp
+            return s.set_servo(int(p[0]), int(p[1]))
         if cmd == m.MAV_CMD_SET_MESSAGE_INTERVAL:
             mid, interval = int(p[0]), int(p[1])
             if mid == m.MAVLINK_MSG_ID_GOOSE_LOG:
@@ -433,6 +448,14 @@ class Aircraft:
         elif mid == m.MAVLINK_MSG_ID_BATTERY_STATUS:
             mav.battery_status_send(0, m.MAV_BATTERY_FUNCTION_ALL, m.MAV_BATTERY_TYPE_LIPO, 32767,
                                     [12400] + [65535] * 9, 850, t // 4000, -1, 80)
+        elif mid == m.MAVLINK_MSG_ID_SERVO_OUTPUT_RAW:
+            v = self.sim.servo_us + [0] * (16 - len(self.sim.servo_us))
+            mav.servo_output_raw_send((t * 1000) & 0xFFFFFFFF, 0, *v)
+        elif mid == m.MAVLINK_MSG_ID_RC_CHANNELS:
+            ch = [1500] * 8
+            ch[0] = int(1500 + 400 * math.sin(2 * math.pi * (t % 4000) / 4000))  # roll stick waving
+            ch[2] = 1000  # throttle low
+            mav.rc_channels_send(t, 8, *(ch + [65535] * 10), 254)  # LQ 100 % -> 254
         else:
             return False
         self.sent(mid)

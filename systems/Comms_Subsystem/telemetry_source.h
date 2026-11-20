@@ -7,6 +7,8 @@
 #include <stdint.h>
 
 #define GOOSE_NUM_SENSORS 8
+#define GOOSE_MAX_SERVOS 16      // SERVO_OUTPUT_RAW carries 16
+#define GOOSE_MAX_RC_CHANNELS 18 // RC_CHANNELS carries 18
 
 struct GooseStateSnapshot // -> GOOSE_STATE and HEARTBEAT
 {
@@ -68,6 +70,19 @@ struct PressureSample // -> SCALED_PRESSURE
     int16_t temperature_cdeg;
 };
 
+struct ServoOutputSample // -> SERVO_OUTPUT_RAW
+{
+    uint16_t us[GOOSE_MAX_SERVOS]; // pulse width actually commanded, us; entries >= count are sent as 0
+    uint8_t count;                 // outputs in use
+};
+
+struct RcInputSample // -> RC_CHANNELS
+{
+    uint16_t us[GOOSE_MAX_RC_CHANNELS]; // pilot channels in us (CRSF ticks already converted)
+    uint8_t count;                      // channels received; 0 = no RC link
+    uint8_t link_quality_pct;           // CRSF LQ 0-100, or 255 if unknown
+};
+
 struct BatterySample // -> BATTERY_STATUS and SYS_STATUS
 {
     uint16_t voltage_mv;
@@ -88,6 +103,8 @@ public:
     virtual bool imu(ImuSample &) { return false; }
     virtual bool pressure(PressureSample &) { return false; }
     virtual bool battery(BatterySample &) { return false; }
+    virtual bool servo_outputs(ServoOutputSample &) { return false; }
+    virtual bool rc_inputs(RcInputSample &) { return false; }
     virtual uint16_t cpu_load_permille() { return 0; } // SYS_STATUS.load
 };
 
@@ -108,9 +125,15 @@ public:
     bool imu(ImuSample &out) override;
     bool pressure(PressureSample &out) override;
     bool battery(BatterySample &out) override;
+    bool servo_outputs(ServoOutputSample &out) override;
+    bool rc_inputs(RcInputSample &out) override;
+
+    // Fake servo outputs; StubCommandHandler::set_servo writes here in BENCH.
+    uint16_t *servo_us() { return servo_us_; }
 
 private:
     GooseStateSnapshot state_;
+    uint16_t servo_us_[GOOSE_MAX_SERVOS] = {1500, 1500, 1500, 1500, 1000, 1500}; // 6 outputs, ch5 throttle
     uint32_t now_ms_ = 0;
     uint8_t last_flight_state_ = 0, last_system_state_ = 0;
     uint32_t flight_since_ms_ = 0, system_since_ms_ = 0;

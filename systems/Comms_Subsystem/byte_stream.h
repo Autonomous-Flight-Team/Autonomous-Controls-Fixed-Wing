@@ -1,6 +1,6 @@
 #pragma once
 // Minimal byte transport used by comms and radio_config. On the Teensy it wraps an
-// Arduino Stream (Serial1); on native it is an in-memory pipe for tests.
+// Arduino Stream (the radio UART); on native it is an in-memory pipe for tests.
 
 #include <stddef.h>
 #include <stdint.h>

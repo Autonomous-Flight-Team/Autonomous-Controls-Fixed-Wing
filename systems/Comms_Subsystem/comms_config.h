@@ -5,9 +5,9 @@
 #include <stdint.h>
 
 // ---- Serial link to the RFD900x ----
-#define COMMS_RADIO_SERIAL Serial1     // Teensy port wired to the radio (used in main.cpp)
+#define COMMS_RADIO_SERIAL Serial3     // Teensy port wired to the radio: TX3 pin 14, RX3 pin 15 (pin map: Serial1 = GPS, Serial2 = ER8 CRSF)
 #define COMMS_RADIO_BAUD 57600         // radio S1 SERIAL_SPEED=57 (factory default)
-#define COMMS_TX_EXTRA_BUFFER 1024     // extra Serial1 TX buffer (Teensy default is only 64 B)
+#define COMMS_TX_EXTRA_BUFFER 1024     // extra radio UART TX buffer (Teensy default is only 64 B)
 
 // ---- MAVLink identity ----
 #define COMMS_SYSID 1                  // GOOSE system id
@@ -41,6 +41,8 @@
 #define COMMS_RATE_SCALED_IMU_US 0
 #define COMMS_RATE_SCALED_PRESSURE_US 1000000
 #define COMMS_RATE_BATTERY_STATUS_US 1000000
+#define COMMS_RATE_SERVO_OUTPUT_RAW_US 500000 // 2 Hz, ~64 B/frame signed
+#define COMMS_RATE_RC_CHANNELS_US 500000      // 2 Hz, ~69 B/frame signed
 #define COMMS_RATE_LOG_DEFAULT_US 1000000  // each logger (system, subsystem) stream
 
 // ---- Logger ID scheme (mirrors Logging_Subsystem/logging_subsystem.h) ----

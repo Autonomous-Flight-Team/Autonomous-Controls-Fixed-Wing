@@ -26,6 +26,21 @@ public:
     virtual MAV_RESULT fault_clear() = 0;
     // MAV_CMD_GOOSE_BENCH: enter (true) or exit (false) BENCH.
     virtual MAV_RESULT bench(bool enter) = 0;
+    // MAV_CMD_DO_SET_SERVO: param1 output (1-based), param2 pulse width (us). Only for
+    // BENCH: implementations must return DENIED in any other system state. comms has
+    // already checked the channel is 1..GOOSE_MAX_SERVOS and the width 1..65535 us;
+    // servo limits are the implementer's job. Default: not supported.
+    virtual MAV_RESULT set_servo(uint8_t /*channel*/, uint16_t /*pwm_us*/) { return MAV_RESULT_UNSUPPORTED; }
+};
+
+// Where StateBridge::set_servo sends an accepted bench setpoint. Implemented by manual
+// controls (bench setpoints). Return false to refuse (unknown output, outside limits):
+// the ground then gets DENIED.
+class BenchServoSink
+{
+public:
+    virtual ~BenchServoSink() = default;
+    virtual bool set_bench_servo(uint8_t channel, uint16_t pwm_us) = 0;
 };
 
 // Stand-in for the FSM, for bench tests of the link alone (no sensors, no FSM code). It
@@ -37,11 +52,13 @@ public:
 //   RESUME:   LOITER or RTL -> CRUISE
 //   BENCH:    STANDBY -> BENCH; exit BENCH -> PREFLIGHT
 //   FAULT_CLEAR: FAULT_GROUND or IN_AIR_RESET -> PREFLIGHT
+//   SET_SERVO: only in BENCH, outputs 1-6, 800-2200 us; written to `servo_us` if given
 // Use StateBridge with the real FSMs for anything beyond link testing.
 class StubCommandHandler : public CommandHandler
 {
 public:
-    explicit StubCommandHandler(GooseStateSnapshot &state) : s_(state) {}
+    explicit StubCommandHandler(GooseStateSnapshot &state, uint16_t *servo_us = nullptr)
+        : s_(state), servo_us_(servo_us) {}
     MAV_RESULT arm(bool arm, bool force) override;
     MAV_RESULT takeoff(float pitch_deg, float altitude_m) override;
     MAV_RESULT return_to_launch() override;
@@ -49,9 +66,11 @@ public:
     MAV_RESULT resume_mission() override;
     MAV_RESULT fault_clear() override;
     MAV_RESULT bench(bool enter) override;
+    MAV_RESULT set_servo(uint8_t channel, uint16_t pwm_us) override;
 
     uint32_t calls = 0; // handy in tests: how many commands actually reached the handler
 
 private:
     GooseStateSnapshot &s_;
+    uint16_t *servo_us_;
 };

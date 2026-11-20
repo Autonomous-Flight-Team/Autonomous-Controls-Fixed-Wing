@@ -242,6 +242,15 @@ static MAV_RESULT execute_command(const mavlink_command_long_t &c, uint64_t now)
         if (c.param1 != 0.0f && c.param1 != 1.0f)
             return MAV_RESULT_DENIED;
         return g.handler->bench(c.param1 == 1.0f);
+    case MAV_CMD_DO_SET_SERVO:
+    {
+        // param1 output (1-based), param2 pulse width (us). Shape checks only; BENCH-only
+        // and servo limits are the handler's job.
+        if (c.param1 != (float)(int)c.param1 || c.param1 < 1 || c.param1 > GOOSE_MAX_SERVOS ||
+            c.param2 != (float)(int)c.param2 || c.param2 < 1 || c.param2 > UINT16_MAX)
+            return MAV_RESULT_DENIED;
+        return g.handler->set_servo((uint8_t)c.param1, (uint16_t)c.param2);
+    }
     // MAV_CMD_NAV_LAND is not supported: the flight FSM has no land input; landing
     // is reached through RTL (RTL -> DESCENT -> LANDING).
 
@@ -614,6 +623,38 @@ static SendResult send_stream(StreamRow &r, uint64_t now)
                                              MAV_BATTERY_CHARGE_STATE_UNDEFINED, cells_ext, 0, 0);
         break;
     }
+    case MAVLINK_MSG_ID_SERVO_OUTPUT_RAW:
+    {
+        ServoOutputSample o;
+        if (!g.tel->servo_outputs(o))
+            return NO_DATA;
+        if (!can_send(r.msg_id, true))
+            return BLOCKED;
+        uint16_t v[GOOSE_MAX_SERVOS] = {};
+        for (int i = 0; i < o.count && i < GOOSE_MAX_SERVOS; i++)
+            v[i] = o.us[i];
+        mavlink_msg_servo_output_raw_pack_chan(sys, comp, CHAN, &msg, (uint32_t)(now - g.init_us), 0, v[0], v[1], v[2],
+                                               v[3], v[4], v[5], v[6], v[7], v[8], v[9], v[10], v[11], v[12], v[13],
+                                               v[14], v[15]);
+        break;
+    }
+    case MAVLINK_MSG_ID_RC_CHANNELS:
+    {
+        RcInputSample in;
+        if (!g.tel->rc_inputs(in))
+            return NO_DATA;
+        if (!can_send(r.msg_id, true))
+            return BLOCKED;
+        uint8_t n = in.count > GOOSE_MAX_RC_CHANNELS ? GOOSE_MAX_RC_CHANNELS : in.count;
+        uint16_t v[GOOSE_MAX_RC_CHANNELS];
+        for (int i = 0; i < GOOSE_MAX_RC_CHANNELS; i++)
+            v[i] = i < n ? in.us[i] : UINT16_MAX; // UINT16_MAX = unused, per the spec
+        // RC_CHANNELS.rssi is 0-254 (255 unknown); LQ % is scaled onto it.
+        uint8_t rssi = in.link_quality_pct > 100 ? 255 : (uint8_t)(in.link_quality_pct * 254 / 100);
+        mavlink_msg_rc_channels_pack_chan(sys, comp, CHAN, &msg, t_ms, n, v[0], v[1], v[2], v[3], v[4], v[5], v[6],
+                                          v[7], v[8], v[9], v[10], v[11], v[12], v[13], v[14], v[15], v[16], v[17], rssi);
+        break;
+    }
     default:
         return NO_DATA;
     }
@@ -746,6 +787,8 @@ void comms_init(ByteStream &link, TelemetrySource &telemetry, CommandHandler &ha
     s.add_message(MAVLINK_MSG_ID_SCALED_IMU, COMMS_RATE_SCALED_IMU_US);
     s.add_message(MAVLINK_MSG_ID_SCALED_PRESSURE, COMMS_RATE_SCALED_PRESSURE_US);
     s.add_message(MAVLINK_MSG_ID_BATTERY_STATUS, COMMS_RATE_BATTERY_STATUS_US);
+    s.add_message(MAVLINK_MSG_ID_SERVO_OUTPUT_RAW, COMMS_RATE_SERVO_OUTPUT_RAW_US);
+    s.add_message(MAVLINK_MSG_ID_RC_CHANNELS, COMMS_RATE_RC_CHANNELS_US);
 
     if (!g.have_key)
         comms_send_statustext(MAV_SEVERITY_WARNING, "COMMS: no signing key provisioned");

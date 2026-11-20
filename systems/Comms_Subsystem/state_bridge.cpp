@@ -222,6 +222,18 @@ MAV_RESULT StateBridge::bench(bool enter)
     return MAV_RESULT_ACCEPTED;
 }
 
+MAV_RESULT StateBridge::set_servo(uint8_t channel, uint16_t pwm_us)
+{
+    if (!servo_sink_)
+        return MAV_RESULT_UNSUPPORTED;
+    // Only while BENCH is the current state and no exit is pending. Not a pulse: the
+    // setpoint goes straight to the sink, and demand selection ignores bench setpoints
+    // outside BENCH anyway.
+    if (sys_.state() != SystemState::kBench || sys_pending_.exit_bench)
+        return MAV_RESULT_DENIED;
+    return servo_sink_->set_bench_servo(channel, pwm_us) ? MAV_RESULT_ACCEPTED : MAV_RESULT_DENIED;
+}
+
 MAV_RESULT StateBridge::fault_clear()
 {
     if (sys_pending_.any())

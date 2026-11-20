@@ -24,7 +24,7 @@ is no parameter or mission protocol.
 | `radio_config.h/.cpp` | Boot-time AT-command check of the radio, with optional AES |
 | `byte_stream.h`, `comms_platform.h/.cpp` | Transport (Arduino `Stream` or in-memory pipe), clock and EEPROM (real or faked on native) |
 
-Firmware wiring is in `src/main.cpp`: radio on `Serial1` at 57600, dummy telemetry, stub
+Firmware wiring is in `src/main.cpp`: radio on `Serial3` (pins 14 TX3 / 15 RX3) at 57600, dummy telemetry, stub
 command handler, USB console for keys.
 
 ## Identity
@@ -144,6 +144,7 @@ below come from `systems/state/system_state.cpp` and `flight_state.cpp`.
 | `MAV_CMD_NAV_RETURN_TO_LAUNCH` (20) | – | flight CLIMB, CRUISE or LOITER (already RTL → ACCEPTED), not MANUAL. During a failsafe only if it is an RTL failsafe | `rtl_cmd` |
 | `MAV_CMD_GOOSE_RESUME_MISSION` (44103) | – | LOITER with a valid, unfinished mission; or RTL with a valid mission, system not CRITICAL, not yet over the landing site. Not MANUAL, no failsafe override | `resume_cmd` |
 | `MAV_CMD_GOOSE_BENCH` (44102) | p1: 1 enter / 0 exit (other values DENIED) | enter: STANDBY, `preflight_ok`, no critical fault (already BENCH → ACCEPTED); exit: in BENCH (goes back through PREFLIGHT) | `bench_cmd` / `exit_bench_cmd` |
+| `MAV_CMD_DO_SET_SERVO` (183) | p1 output 1–16, p2 pulse width µs (non-integers, out of range → DENIED in comms) | system **BENCH**, no exit pending; the bench servo sink accepts the value (its limits). No sink → UNSUPPORTED | straight to `BenchServoSink::set_bench_servo()`, not a pulse |
 | `MAV_CMD_GOOSE_FAULT_CLEAR` (44101) | – | FAULT_GROUND with no critical fault active, or IN_AIR_RESET | `fault_clear_cmd` |
 | `MAV_CMD_SET_MESSAGE_INTERVAL` (511) | p1 message id, p2 interval µs (-1 off, 0 default) | – | ACCEPTED; DENIED if the message is not a stream (including HEARTBEAT) |
 | `MAV_CMD_GET_MESSAGE_INTERVAL` (510) | p1 message id | – | ACCEPTED, then `MESSAGE_INTERVAL` (-1 off, 0 not a stream) |
@@ -192,12 +193,14 @@ MAVLink 2 trims trailing zero bytes, so most frames are shorter.
 | `SCALED_IMU` | off | 49 | |
 | `SCALED_PRESSURE` | 1 Hz | 41 | |
 | `BATTERY_STATUS` | 1 Hz | 79 | pack voltage in `voltages[0]` |
+| `SERVO_OUTPUT_RAW` | 2 Hz | 62 | `TelemetrySource::servo_outputs()`: commanded pulse widths, unused outputs 0 |
+| `RC_CHANNELS` | 2 Hz | 67 | `TelemetrySource::rc_inputs()`: pilot channels in µs, unused UINT16_MAX; `rssi` = CRSF LQ % scaled to 0–254 (255 unknown) |
 | `GOOSE_LOG` | 1 Hz per logger stream | ≤ 97 | INFO records; WARN/ERROR records are sent at once |
 | `STATUSTEXT` | events | ≤ 79 | WARN/ERROR log records, "no signing key" at boot |
 | `COMMAND_ACK`, `MESSAGE_INTERVAL` | replies | 35, 31 | |
 
-At the defaults the worst case is about 1.5 kB/s. That figure comes from the frame sizes
-above and has not been measured on a link. The comms code caps itself at
+At the defaults the worst case is about 1.75 kB/s (1.5 kB/s measured over the radios
+before the servo and RC streams were added; they add about 260 B/s at 2 Hz). The comms code caps itself at
 `COMMS_TX_BYTES_PER_SEC` (3000 B/s); 57600 baud carries about 5.7 kB/s.
 
 `HEARTBEAT.system_status`:
@@ -355,6 +358,14 @@ comms_update();
   - Ground heartbeats arrive every 500 ms and the radio can delay frames, so 200 ms
     would flap.
   - `comms_gcs_link_ok()` already uses `COMMS_GCS_TIMEOUT_MS` (3000 ms).
+- Servo and RC telemetry: `StateBridge` passes `servo_outputs()` and `rc_inputs()` through
+  to the `sensors` source given to its constructor, like attitude or GPS. Fill
+  `ServoOutputSample` / `RcInputSample` (`telemetry_source.h`) there; returning false skips
+  the message.
+- Bench servo setpoints from the GCS: implement `BenchServoSink` (`command_handler.h`)
+  and call `bridge.set_bench_servo_sink(&sink)`. `MAV_CMD_DO_SET_SERVO` then reaches
+  `set_bench_servo(channel, us)` only while the system is in BENCH; return false to deny
+  (unknown output, outside limits). No sink → UNSUPPORTED.
 - When `SystemState`, `FlightState` or `FaultId` changes, the comms build fails until
   `goose.xml` and the checks in `state_bridge.cpp` are updated to match. Then run
   `uv run tools/gen_mavlink.py`.

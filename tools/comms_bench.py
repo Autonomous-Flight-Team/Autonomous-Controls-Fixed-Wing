@@ -156,8 +156,15 @@ class Bench:
             self.show_command("RTL on the ground", m.MAV_CMD_NAV_RETURN_TO_LAUNCH, expect=m.MAV_RESULT_DENIED)
         self.show_command("GOOSE_BENCH enter", m.MAV_CMD_GOOSE_BENCH, 1, expect=m.MAV_RESULT_ACCEPTED)
         self.show_command("ARM while in BENCH", m.MAV_CMD_COMPONENT_ARM_DISARM, 1, expect=m.MAV_RESULT_DENIED)
+        self.show_command("SET_SERVO 1 to 1800 in BENCH", m.MAV_CMD_DO_SET_SERVO, 1, 1800,
+                          expect=m.MAV_RESULT_ACCEPTED)
+        self.pump(1.5)
+        so = self.latest.get("SERVO_OUTPUT_RAW")
+        print(f"  SERVO_OUTPUT_RAW servo1 {so.servo1_raw if so else '-'} us (expect 1800)")
+        self.show_command("SET_SERVO 1 back to 1500", m.MAV_CMD_DO_SET_SERVO, 1, 1500, expect=m.MAV_RESULT_ACCEPTED)
         self.show_command("GOOSE_BENCH exit (-> PREFLIGHT)", m.MAV_CMD_GOOSE_BENCH, 0, expect=m.MAV_RESULT_ACCEPTED)
         self.show_command("GOOSE_FAULT_CLEAR with no fault", m.MAV_CMD_GOOSE_FAULT_CLEAR, expect=m.MAV_RESULT_DENIED)
+        self.show_command("SET_SERVO outside BENCH", m.MAV_CMD_DO_SET_SERVO, 1, 1800, expect=m.MAV_RESULT_DENIED)
         self.show_command("unsupported (DO_SET_MODE)", m.MAV_CMD_DO_SET_MODE, expect=m.MAV_RESULT_UNSUPPORTED)
 
     def rates(self):

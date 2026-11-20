@@ -28,7 +28,7 @@ static PipeRing g_up, g_down; // up: ground -> aircraft, down: aircraft -> groun
 static MemoryByteStream g_vehicle_end(g_up, g_down);
 static MemoryByteStream g_gcs_end(g_down, g_up);
 static DummyTelemetrySource g_tel;
-static StubCommandHandler g_handler(g_tel.state());
+static StubCommandHandler g_handler(g_tel.state(), g_tel.servo_us());
 
 static mavlink_signing_t g_gcs_signing;
 static mavlink_signing_streams_t g_gcs_streams;
@@ -238,7 +238,8 @@ static void test_round_trip_every_message()
                         MAVLINK_MSG_ID_GLOBAL_POSITION_INT, MAVLINK_MSG_ID_GPS_RAW_INT, MAVLINK_MSG_ID_VFR_HUD,
                         MAVLINK_MSG_ID_SCALED_IMU, MAVLINK_MSG_ID_SCALED_PRESSURE, MAVLINK_MSG_ID_BATTERY_STATUS,
                         MAVLINK_MSG_ID_STATUSTEXT, MAVLINK_MSG_ID_COMMAND_ACK, MAVLINK_MSG_ID_MESSAGE_INTERVAL,
-                        MAVLINK_MSG_ID_GOOSE_STATE, MAVLINK_MSG_ID_GOOSE_LOG})
+                        MAVLINK_MSG_ID_GOOSE_STATE, MAVLINK_MSG_ID_GOOSE_LOG, MAVLINK_MSG_ID_SERVO_OUTPUT_RAW,
+                        MAVLINK_MSG_ID_RC_CHANNELS})
     {
         char what[48];
         snprintf(what, sizeof(what), "message id %u missing", (unsigned)id);
@@ -746,6 +747,72 @@ static void test_unchanged_state_is_not_resent()
     TEST_ASSERT_INT_WITHIN(1, 4, count_rx(MAVLINK_MSG_ID_GOOSE_STATE)); // the 2 Hz stream only
 }
 
+static void test_servo_and_rc_streams()
+{
+    boot(nullptr, false);
+    run_ms(2000);
+    TEST_ASSERT_INT_WITHIN(1, 4, count_rx(MAVLINK_MSG_ID_SERVO_OUTPUT_RAW)); // 2 Hz
+    TEST_ASSERT_INT_WITHIN(1, 4, count_rx(MAVLINK_MSG_ID_RC_CHANNELS));
+
+    mavlink_servo_output_raw_t so;
+    mavlink_msg_servo_output_raw_decode(last_rx(MAVLINK_MSG_ID_SERVO_OUTPUT_RAW), &so);
+    TEST_ASSERT_EQUAL_UINT16(1500, so.servo1_raw);
+    TEST_ASSERT_EQUAL_UINT16(1000, so.servo5_raw);
+    TEST_ASSERT_EQUAL_UINT16(0, so.servo7_raw); // unused outputs are 0
+
+    mavlink_rc_channels_t rc;
+    mavlink_msg_rc_channels_decode(last_rx(MAVLINK_MSG_ID_RC_CHANNELS), &rc);
+    TEST_ASSERT_EQUAL_UINT8(8, rc.chancount);
+    TEST_ASSERT_EQUAL_UINT16(1000, rc.chan3_raw);
+    TEST_ASSERT_EQUAL_UINT16(UINT16_MAX, rc.chan9_raw); // unused channels are UINT16_MAX
+    TEST_ASSERT_EQUAL_UINT8(254, rc.rssi);              // LQ 100 % -> 254
+
+    // the rates are adjustable like any other stream
+    gcs_command(MAV_CMD_SET_MESSAGE_INTERVAL, MAVLINK_MSG_ID_RC_CHANNELS, -1); // -1 = off
+    run_ms(50);
+    g_rx.clear();
+    run_ms(2000);
+    TEST_ASSERT_EQUAL(0, count_rx(MAVLINK_MSG_ID_RC_CHANNELS));
+}
+
+static void test_set_servo_only_in_bench()
+{
+    boot(nullptr, false);
+    run_ms(50);
+    // STANDBY: denied, servo unchanged
+    gcs_command(MAV_CMD_DO_SET_SERVO, 1, 1800);
+    run_ms(50);
+    TEST_ASSERT_EQUAL(MAV_RESULT_DENIED, last_ack_result(MAV_CMD_DO_SET_SERVO));
+    TEST_ASSERT_EQUAL_UINT16(1500, g_tel.servo_us()[0]);
+
+    gcs_command(MAV_CMD_GOOSE_BENCH, 1);
+    run_ms(50);
+    TEST_ASSERT_EQUAL(MAV_RESULT_ACCEPTED, last_ack_result(MAV_CMD_GOOSE_BENCH));
+    gcs_command(MAV_CMD_DO_SET_SERVO, 1, 1800);
+    run_ms(50);
+    TEST_ASSERT_EQUAL(MAV_RESULT_ACCEPTED, last_ack_result(MAV_CMD_DO_SET_SERVO));
+    TEST_ASSERT_EQUAL_UINT16(1800, g_tel.servo_us()[0]);
+
+    // shape checks in comms: never reach the handler
+    uint32_t calls = g_handler.calls;
+    gcs_command(MAV_CMD_DO_SET_SERVO, 0, 1500);   // output 0
+    run_ms(50);
+    TEST_ASSERT_EQUAL(MAV_RESULT_DENIED, last_ack_result(MAV_CMD_DO_SET_SERVO));
+    gcs_command(MAV_CMD_DO_SET_SERVO, 1.5f, 1500); // not an integer
+    run_ms(50);
+    gcs_command(MAV_CMD_DO_SET_SERVO, 2, 70000);  // > 16 bits
+    run_ms(50);
+    TEST_ASSERT_EQUAL(MAV_RESULT_DENIED, last_ack_result(MAV_CMD_DO_SET_SERVO));
+    TEST_ASSERT_EQUAL_UINT32(calls, g_handler.calls);
+
+    // the reported outputs follow the setpoint
+    g_rx.clear();
+    run_ms(1000);
+    mavlink_servo_output_raw_t so;
+    mavlink_msg_servo_output_raw_decode(last_rx(MAVLINK_MSG_ID_SERVO_OUTPUT_RAW), &so);
+    TEST_ASSERT_EQUAL_UINT16(1800, so.servo1_raw);
+}
+
 static void test_parser_survives_noise_and_loss()
 {
     boot(TEST_KEY, true);
@@ -807,5 +874,7 @@ int main(int, char **)
     RUN_TEST(test_radio_txbuf_slows_streams);
     RUN_TEST(test_parser_survives_noise_and_loss);
     RUN_TEST(test_unchanged_state_is_not_resent);
+    RUN_TEST(test_servo_and_rc_streams);
+    RUN_TEST(test_set_servo_only_in_bench);
     return UNITY_END();
 }

@@ -375,6 +375,88 @@ static void test_armed_helper_matches_fsm()
 }
 
 // End to end: a MAVLink COMMAND_LONG through comms reaches the real FSM via the bridge.
+struct RecordingSink : BenchServoSink
+{
+    uint8_t channel = 0;
+    uint16_t pwm = 0;
+    bool refuse = false;
+    bool set_bench_servo(uint8_t ch, uint16_t us) override
+    {
+        if (refuse)
+            return false;
+        channel = ch;
+        pwm = us;
+        return true;
+    }
+};
+
+struct FakeOutputs : TelemetrySource
+{
+    bool goose_state(GooseStateSnapshot &) override { return false; }
+    bool servo_outputs(ServoOutputSample &o) override
+    {
+        o = ServoOutputSample();
+        o.count = 1;
+        o.us[0] = 1234;
+        return true;
+    }
+    bool rc_inputs(RcInputSample &o) override
+    {
+        o = RcInputSample();
+        o.count = 1;
+        o.us[0] = 1700;
+        o.link_quality_pct = 90;
+        return true;
+    }
+};
+
+static void test_set_servo_only_in_bench()
+{
+    Harness h;
+    TEST_ASSERT_EQUAL(MAV_RESULT_UNSUPPORTED, h.bridge.set_servo(1, 1500)); // no sink
+    RecordingSink sink;
+    h.bridge.set_bench_servo_sink(&sink);
+
+    h.to_standby();
+    TEST_ASSERT_EQUAL(MAV_RESULT_DENIED, h.bridge.set_servo(1, 1600)); // STANDBY
+    TEST_ASSERT_EQUAL(MAV_RESULT_ACCEPTED, h.bridge.bench(true));
+    TEST_ASSERT_EQUAL(MAV_RESULT_DENIED, h.bridge.set_servo(1, 1600)); // BENCH requested, not entered yet
+    h.step();
+    TEST_ASSERT_EQUAL(SystemState::kBench, h.sys.state());
+
+    TEST_ASSERT_EQUAL(MAV_RESULT_ACCEPTED, h.bridge.set_servo(3, 1600));
+    TEST_ASSERT_EQUAL(3, sink.channel);
+    TEST_ASSERT_EQUAL(1600, sink.pwm);
+    sink.refuse = true; // outside the sink's limits
+    TEST_ASSERT_EQUAL(MAV_RESULT_DENIED, h.bridge.set_servo(3, 2500));
+    sink.refuse = false;
+
+    TEST_ASSERT_EQUAL(MAV_RESULT_ACCEPTED, h.bridge.bench(false));
+    TEST_ASSERT_EQUAL(MAV_RESULT_DENIED, h.bridge.set_servo(3, 1700)); // exit pending
+    h.step();
+    TEST_ASSERT_EQUAL(MAV_RESULT_DENIED, h.bridge.set_servo(3, 1700)); // PREFLIGHT
+    TEST_ASSERT_EQUAL(1600, sink.pwm);
+}
+
+static void test_servo_and_rc_pass_through()
+{
+    SystemStateFSM sys;
+    FlightStateFSM fl;
+    ServoOutputSample so;
+    RcInputSample rc;
+    StateBridge none(sys, fl);
+    TEST_ASSERT_FALSE(none.servo_outputs(so));
+    TEST_ASSERT_FALSE(none.rc_inputs(rc));
+
+    FakeOutputs src;
+    StateBridge bridge(sys, fl, &src);
+    TEST_ASSERT_TRUE(bridge.servo_outputs(so));
+    TEST_ASSERT_EQUAL(1234, so.us[0]);
+    TEST_ASSERT_TRUE(bridge.rc_inputs(rc));
+    TEST_ASSERT_EQUAL(1700, rc.us[0]);
+    TEST_ASSERT_EQUAL(90, rc.link_quality_pct);
+}
+
 static void test_end_to_end_through_comms()
 {
     static PipeRing up, down;
@@ -443,5 +525,7 @@ int main(int, char **)
     RUN_TEST(test_snapshot_matches_fsm);
     RUN_TEST(test_armed_helper_matches_fsm);
     RUN_TEST(test_end_to_end_through_comms);
+    RUN_TEST(test_set_servo_only_in_bench);
+    RUN_TEST(test_servo_and_rc_pass_through);
     return UNITY_END();
 }

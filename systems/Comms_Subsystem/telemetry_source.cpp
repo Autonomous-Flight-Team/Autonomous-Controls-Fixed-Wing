@@ -112,3 +112,24 @@ bool DummyTelemetrySource::battery(BatterySample &out)
     out = {12400, 850, (int32_t)(now_ms_ / 4000), 80};
     return true;
 }
+
+bool DummyTelemetrySource::servo_outputs(ServoOutputSample &out)
+{
+    out = ServoOutputSample();
+    out.count = 6;
+    for (int i = 0; i < out.count; i++)
+        out.us[i] = servo_us_[i];
+    return true;
+}
+
+bool DummyTelemetrySource::rc_inputs(RcInputSample &out)
+{
+    out = RcInputSample();
+    out.count = 8;
+    for (int i = 0; i < out.count; i++)
+        out.us[i] = 1500;
+    out.us[0] = (uint16_t)(1500 + 400 * sinf(phase(now_ms_, 4.0f))); // roll stick waving
+    out.us[2] = 1000;                                                  // throttle low
+    out.link_quality_pct = 100;
+    return true;
+}

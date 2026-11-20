@@ -36,6 +36,9 @@ public:
     void apply(SystemInputs &si, FlightInputs &fi);
     void set_fault_mask(FaultMask mask) { faults_ = mask; }
     void set_sensor_status(const uint8_t status[GOOSE_NUM_SENSORS]);
+    // Where MAV_CMD_DO_SET_SERVO setpoints go (manual controls' bench setpoints). Without
+    // a sink, set_servo answers UNSUPPORTED.
+    void set_bench_servo_sink(BenchServoSink *sink) { servo_sink_ = sink; }
 
     // CommandHandler
     MAV_RESULT arm(bool arm, bool force) override;
@@ -45,6 +48,7 @@ public:
     MAV_RESULT resume_mission() override;
     MAV_RESULT fault_clear() override;
     MAV_RESULT bench(bool enter) override;
+    MAV_RESULT set_servo(uint8_t channel, uint16_t pwm_us) override;
 
     // TelemetrySource
     bool goose_state(GooseStateSnapshot &out) override;
@@ -55,6 +59,8 @@ public:
     bool imu(ImuSample &out) override { return sensors_ && sensors_->imu(out); }
     bool pressure(PressureSample &out) override { return sensors_ && sensors_->pressure(out); }
     bool battery(BatterySample &out) override { return sensors_ && sensors_->battery(out); }
+    bool servo_outputs(ServoOutputSample &out) override { return sensors_ && sensors_->servo_outputs(out); }
+    bool rc_inputs(RcInputSample &out) override { return sensors_ && sensors_->rc_inputs(out); }
     uint16_t cpu_load_permille() override { return sensors_ ? sensors_->cpu_load_permille() : 0; }
 
 private:
@@ -75,6 +81,7 @@ private:
     SystemStateFSM &sys_;
     FlightStateFSM &fl_;
     TelemetrySource *sensors_;
+    BenchServoSink *servo_sink_ = nullptr;
     SystemPulses sys_pending_{};
     FlightPulses fl_pending_{};
     SystemInputs seen_si_{}; // inputs as of the last apply()

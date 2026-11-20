@@ -1,4 +1,4 @@
-// Comms demo wiring: RFD900x on Serial1, dummy telemetry, stub command handler.
+// Comms demo wiring: RFD900x on Serial3 (COMMS_RADIO_SERIAL), dummy telemetry, stub command handler.
 // To fly the real state machines instead, pass a StateBridge (state_bridge.h) as both the
 // telemetry source and the command handler; see systems/Comms_Subsystem/README.md.
 //
@@ -12,7 +12,7 @@
 #include "radio_config.h"
 
 static DummyTelemetrySource telemetry;
-static StubCommandHandler command_handler(telemetry.state());
+static StubCommandHandler command_handler(telemetry.state(), telemetry.servo_us());
 static ArduinoByteStream radio_stream(COMMS_RADIO_SERIAL);
 static uint8_t radio_tx_buffer[COMMS_TX_EXTRA_BUFFER];
 

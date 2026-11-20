@@ -92,3 +92,13 @@ MAV_RESULT StubCommandHandler::bench(bool enter)
     s_.system_state = GOOSE_SYSTEM_STATE_PREFLIGHT;
     return MAV_RESULT_ACCEPTED;
 }
+
+MAV_RESULT StubCommandHandler::set_servo(uint8_t channel, uint16_t pwm_us)
+{
+    calls++;
+    if (s_.system_state != GOOSE_SYSTEM_STATE_BENCH || channel < 1 || channel > 6 || pwm_us < 800 || pwm_us > 2200)
+        return MAV_RESULT_DENIED;
+    if (servo_us_)
+        servo_us_[channel - 1] = pwm_us;
+    return MAV_RESULT_ACCEPTED;
+}
