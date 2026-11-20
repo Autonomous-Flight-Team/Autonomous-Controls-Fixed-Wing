@@ -176,6 +176,22 @@ void test_link_stats() {
     TEST_ASSERT_FALSE(rc_lost_raw(rc_link_status(), PilotParams(), 7));
 }
 
+// The ER8's first RC frames arrive before its first stats frame (~100 ms):
+// that window must not read as RC lost, and LQ reports unknown.
+void test_rc_frames_before_stats_are_not_lost() {
+    push(centered_frame());
+    rc_link_update(5);
+    TEST_ASSERT_TRUE(rc_link_status().frames_seen);
+    TEST_ASSERT_FALSE(rc_link_status().stats_seen);
+    TEST_ASSERT_FALSE(rc_lost_raw(rc_link_status(), PilotParams(), 5));
+    TEST_ASSERT_EQUAL_UINT8(kLinkQualityUnknown,
+                            rc_link_quality_pct(rc_link_status()));
+    push(link_stats(60, 60, 0, 0)); // receiver reports LQ 0: now it counts
+    rc_link_update(6);
+    TEST_ASSERT_TRUE(rc_link_status().stats_seen);
+    TEST_ASSERT_TRUE(rc_lost_raw(rc_link_status(), PilotParams(), 6));
+}
+
 void test_link_stats_alone_do_not_count_as_frames() {
     push(link_stats(60, 60, 100, 0));
     rc_link_update(5);
@@ -262,6 +278,7 @@ int main(int, char**) {
     RUN_TEST(test_switch_threshold_and_mid_position);
     RUN_TEST(test_config_remaps_channels);
     RUN_TEST(test_link_stats);
+    RUN_TEST(test_rc_frames_before_stats_are_not_lost);
     RUN_TEST(test_link_stats_alone_do_not_count_as_frames);
     RUN_TEST(test_frames_stop_means_rc_lost);
     RUN_TEST(test_bad_crc_dropped_and_counted);

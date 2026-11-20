@@ -21,7 +21,9 @@ bool rc_lost_raw(const RcLinkStatus& link, const PilotParams& p,
     if ((now_ms - link.last_frame_ms) > p.rc_timeout_ms) {
         return true;
     }
-    return link.link_quality <= p.min_link_quality;
+    // LQ is only known once a stats frame has arrived; until then frame
+    // age alone decides.
+    return link.stats_seen && link.link_quality <= p.min_link_quality;
 }
 
 bool pilot_fresh(const PilotInput& in, const PilotParams& p,
@@ -39,7 +41,7 @@ bool manual_active(const PilotInput& in, bool fresh) {
 }
 
 uint8_t rc_link_quality_pct(const RcLinkStatus& link) {
-    if (!link.frames_seen) {
+    if (!link.stats_seen) {
         return kLinkQualityUnknown;
     }
     return link.link_quality > 100 ? 100 : link.link_quality;

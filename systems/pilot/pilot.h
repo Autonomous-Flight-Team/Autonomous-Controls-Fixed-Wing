@@ -38,7 +38,8 @@ bool mirror_us(const PilotInput& in, bool fresh, int8_t rc_channel,
 
 constexpr uint8_t kLinkQualityUnknown = 255;
 
-// 0-100 once frames have been seen, kLinkQualityUnknown before.
+// 0-100 once a stats frame has arrived (stats_seen), kLinkQualityUnknown
+// before.
 uint8_t rc_link_quality_pct(const RcLinkStatus& link);
 
 // Copies the receiver µs for telemetry. Returns the count: 0 if the frame

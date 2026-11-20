@@ -37,7 +37,7 @@ about 600 bytes.
 | Frame | Type | Result |
 |---|---|---|
 | RC channels packed | `0x16` | 16 channels, ticks → µs with `crsf_ticks_to_us()` (pilot.h, same as ELRS), mapped to roll/pitch/yaw/throttle/flaps and switch bits; `stamp_ms`, `frames_seen`, `last_frame_ms` |
-| Link statistics | `0x14` | `link_quality` (uplink LQ %), `rssi_dbm` (active antenna) |
+| Link statistics | `0x14` | `link_quality` (uplink LQ %), `rssi_dbm` (active antenna), `stats_seen` |
 | anything else | | valid CRC → ignored |
 
 - Frames start with sync `0xC8`. A bad CRC or impossible length is dropped,
@@ -45,9 +45,10 @@ about 600 bytes.
 - The newest RC frame wins; older frames in the same loop are overwritten.
 - There is no failsafe flag: the ER8 stops sending RC frames when it loses the
   transmitter, so the frame age is what `rc_lost_raw()` / `pilot_fresh()` use.
-- `link_quality` stays 0 until the first link statistics frame. With the
-  default `min_link_quality` of 0 that reads as `kRcLost` for the moment
-  between the first RC frame and the first statistics frame.
+- `link_quality` is unknown until the first link statistics frame:
+  `stats_seen` stays false, `rc_lost_raw()` judges by frame age alone, and
+  telemetry reports LQ 255 (unknown). The ER8 sends statistics about every
+  100 ms, so the first RC frames arrive before the first statistics frame.
 
 ## Channel map (`RcLinkConfig`)
 
@@ -65,6 +66,25 @@ Defaults are the ELRS/EdgeTX AETR order. Change them to match the TX16S model.
 
 Reversing and end points belong on the transmitter. `raw_us` is never
 rescaled, so mirroring stays exact.
+
+## Changes made on manual_controls
+
+**2026-11-19, `RcLinkStatus::stats_seen`** (agreed with Advik; owner of
+`pilot_input.h` is manual controls):
+
+- `pilot_input.h`: new `bool stats_seen` in `RcLinkStatus`.
+- `rc_link.cpp`: `on_link_stats()` sets `g.status.stats_seen = true` (one
+  line). Nothing else in rc_link changed.
+- `pilot.cpp`: `rc_lost_raw()` only checks `link_quality` once `stats_seen`
+  is true, and `rc_link_quality_pct()` returns 255 (unknown) until then
+  (before: `link_quality` read 0, which counted as RC lost until the first
+  statistics frame).
+- Tests: `test_rc_link` gained `test_rc_frames_before_stats_are_not_lost`.
+
+If you work on the `rc_link` branch again, take this commit from
+`manual_controls` (merge or cherry-pick) or make the same one-line change in
+`on_link_stats()`: an identical edit merges cleanly. CRC failures still drop
+the whole frame; that's intended (simple over saving one frame).
 
 ## Tests
 

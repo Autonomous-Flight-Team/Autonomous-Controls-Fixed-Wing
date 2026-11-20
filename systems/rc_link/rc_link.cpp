@@ -77,6 +77,7 @@ void on_link_stats(const uint8_t* p) {
     const uint8_t rssi = p[4] ? p[1] : p[0];
     g.status.rssi_dbm = static_cast<int8_t>(rssi > 128 ? -128 : -rssi);
     g.status.link_quality = p[2];
+    g.status.stats_seen = true;
 }
 
 // buf holds a whole frame: check it and dispatch it.

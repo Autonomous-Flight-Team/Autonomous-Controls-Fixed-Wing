@@ -39,8 +39,12 @@ struct PilotInput {
 // Link facts from rc_link. No "failsafe" flag: an ELRS receiver just stops
 // sending frames when it loses the transmitter. pilot/ decides kRcLost.
 struct RcLinkStatus {
-    bool frames_seen = false;
-    uint8_t link_quality = 0; // CRSF LQ, %
+    bool frames_seen = false; // an RC channels frame has arrived
+    // A LINK_STATISTICS frame has arrived: link_quality and rssi_dbm hold
+    // real values. Until then LQ is unknown, not 0 (ELRS sends stats about
+    // every 100 ms, so the first RC frames come before the first stats).
+    bool stats_seen = false;
+    uint8_t link_quality = 0; // CRSF LQ, %; valid only once stats_seen
     int8_t rssi_dbm = 0;
     uint32_t last_frame_ms = 0;
     uint32_t bad_frames = 0;

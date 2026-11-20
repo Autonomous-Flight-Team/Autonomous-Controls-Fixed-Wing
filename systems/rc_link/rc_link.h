@@ -54,7 +54,8 @@ bool rc_link_latest(PilotInput* out);
 
 // Link facts. last_frame_ms and frames_seen follow RC channels frames only
 // (the receiver stops sending them on failsafe). link_quality / rssi_dbm
-// come from LINK_STATISTICS frames and stay 0 until the first one arrives.
+// come from LINK_STATISTICS frames; stats_seen is false (LQ unknown) until
+// the first one arrives.
 const RcLinkStatus& rc_link_status();
 
 // ---- CRSF details, exposed for tests ----

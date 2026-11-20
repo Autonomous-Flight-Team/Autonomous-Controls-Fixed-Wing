@@ -20,6 +20,7 @@ PilotInput frame(uint32_t stamp_ms) {
 RcLinkStatus link_ok(uint32_t last_frame_ms) {
     RcLinkStatus s;
     s.frames_seen = true;
+    s.stats_seen = true;
     s.link_quality = 100;
     s.last_frame_ms = last_frame_ms;
     return s;
@@ -83,6 +84,19 @@ void test_rc_lost_on_link_quality() {
     TEST_ASSERT_FALSE(rc_lost_raw(s, p, 1000));
 }
 
+// Before the first stats frame LQ is unknown: frame age alone decides.
+void test_lq_ignored_until_stats_seen() {
+    PilotParams p;
+    p.min_link_quality = 30;
+    RcLinkStatus s = link_ok(1000);
+    s.stats_seen = false;
+    s.link_quality = 0;
+    TEST_ASSERT_FALSE(rc_lost_raw(s, p, 1000));
+    TEST_ASSERT_TRUE(rc_lost_raw(s, p, 1101)); // still lost on frame age
+    s.stats_seen = true;
+    TEST_ASSERT_TRUE(rc_lost_raw(s, p, 1000)); // now LQ 0 counts
+}
+
 void test_rc_lost_wraps_with_millis() {
     const PilotParams p;
     const RcLinkStatus s = link_ok(0xFFFFFFC0u);
@@ -122,7 +136,9 @@ void test_mirror_us() {
 void test_link_quality_for_telemetry() {
     RcLinkStatus s;
     TEST_ASSERT_EQUAL_UINT8(kLinkQualityUnknown, rc_link_quality_pct(s));
-    s.frames_seen = true;
+    s.frames_seen = true; // RC frames but no stats yet: still unknown
+    TEST_ASSERT_EQUAL_UINT8(kLinkQualityUnknown, rc_link_quality_pct(s));
+    s.stats_seen = true;
     s.link_quality = 87;
     TEST_ASSERT_EQUAL_UINT8(87, rc_link_quality_pct(s));
     s.link_quality = 0; // seen, now lost: a real 0, not unknown
@@ -150,6 +166,7 @@ int main(int, char**) {
     RUN_TEST(test_rc_lost_before_first_frame);
     RUN_TEST(test_rc_lost_on_timeout);
     RUN_TEST(test_rc_lost_on_link_quality);
+    RUN_TEST(test_lq_ignored_until_stats_seen);
     RUN_TEST(test_rc_lost_wraps_with_millis);
     RUN_TEST(test_fresh);
     RUN_TEST(test_bypass_switch_sets_manual_only_when_fresh);
