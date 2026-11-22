@@ -5,7 +5,6 @@
 
 #include "ms4525do.h"
 #include "SensorHealth.h"
-#include "SensorInterface.h"
 #include "SensorStatus.h"
 
 namespace sensors
@@ -45,7 +44,7 @@ namespace sensors
         return m_stats;
     }
 
-    bool Pitot::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr)
+    bool Pito::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const
     {
         const PitoData *pitot = static_cast<const PitoData *>(structPtr);
         uint8_t b[8];

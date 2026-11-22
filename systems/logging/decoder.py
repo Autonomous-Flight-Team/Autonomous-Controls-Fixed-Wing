@@ -20,7 +20,7 @@ LEVELS = {0x00: "INFO", 0x0F: "WARN", 0xFF: "ERROR"}
 DECODERS = {
     (0x00, 0x01): ("IMU", ">9f", ("accelX", "accelY", "accelZ", "gyroX", "gyroY", "gyroZ",
                                   "magX", "magY", "magZ")),
-    (0x00, 0x02): ("BARO", ">i", ("z",)),
+    (0x00, 0x02): ("BARO", ">2f", ("temp_C", "pressure_Pa")),
     (0x00, 0x04): ("PITOT", ">2f", ("pressure_Pa", "die_temp_C")),
     (0x00, 0x05): ("SENSOR_TRUST", ">4B", ("fail_threshold", "full_fail_threshold",
                                            "success_threshold_from_degraded",

@@ -43,7 +43,7 @@ namespace sensors
 
         BaroData get();
 
-        bool loggable();
+        bool loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const override;
 
     private:
         BaroData m_stats;

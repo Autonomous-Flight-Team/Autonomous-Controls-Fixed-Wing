@@ -35,7 +35,7 @@ namespace sensors
         // Updates the sensor for a successful read
         void on_failure();
 
-        bool loggable();
+        bool loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const override;
 
     private:
         sensor_trust_limits m_cfg;

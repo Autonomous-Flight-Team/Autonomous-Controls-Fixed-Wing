@@ -10,6 +10,7 @@
 #include "SensorHealth.h"
 #include "SensorInterface.h"
 #include "SensorStatus.h"
+#include "logging_interface.h"
 
 namespace sensors
 {
@@ -26,7 +27,7 @@ namespace sensors
         float magZ;   // Z-axis mag in gauss 🧲
     };
 
-    class ImuK : public
+    class ImuK : public logging
     {
     public:
         ImuK();
@@ -39,7 +40,7 @@ namespace sensors
 
         ImuData get();
 
-        bool loggable();
+        bool loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const override;
 
     private:
         ImuData m_stats;

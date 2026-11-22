@@ -83,7 +83,7 @@ namespace sensors
         return m_stats;
     }
 
-    bool Imu::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr)
+    bool ImuK::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const
     {
         const ImuData *imu = static_cast<const ImuData *>(structPtr);
         uint8_t b[36];

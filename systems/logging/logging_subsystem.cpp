@@ -1,83 +1,135 @@
-#pragma once
-#include <stdint.h>
-#include <stddef.h>
+#include <Arduino.h>
 #include <string.h>
+#include "SdFat.h"
+#include "ring_buffer.h"
+#include "logging_subsystem.h"
 
-// Msg encodings (All big endian)
-#define MESSAGE_START 0xFEED
-#define END_MESSAGE 0xDEAD
+#define BUFFER_SIZE 4096 // power of two; 128 is too small for ~100 Hz sensors
+#define MAX_PAYLOAD 64
+#define HEADER_SIZE 10 // START(2), sys, sub, level, ts(4), len
+// packet = HEADER + payload + END(2)
 
-// System / subsystem IDs
-#define SENSOR 0x00
-#define SUB_IMU 0x01
-#define SUB_BARO 0x02
-#define SUB_GPS 0x03
-#define SUB_PITOT 0x04
-#define SUB_SENSOR_TRUST 0x05
+static_assert((BUFFER_SIZE & (BUFFER_SIZE - 1)) == 0, "BUFFER_SIZE must be power of two");
 
-// Log levels
-#define LOG_INFO 0x00
-#define LOG_WARN 0x0F
-#define LOG_ERROR 0xFF
+// move to main at some point
+static SdFat sd;
+static FsFile myFile;
+static ringbuf_t buffer;
+static uint8_t backing_buffer[BUFFER_SIZE];
+static RingBuffer logging_buffer;
 
-// time to call (in hz)
-#define CALL_IMU 100
-#define CALL_BARO 190
+static const char *filename = "datalog.bin";
+static volatile uint32_t packet_drop = 0;
+static uint32_t bytes_lost = 0; // popped from the buffer but not written to SD
 
-typedef struct
+bool initialize_sd()
 {
-    int subsystem_id;
-    int sub_sub_system_id;
-    int payload_size;
-    int period_ms;
-    int next_call;
-} probe_entry_t;
-
-// dummy sensor for testing (may remove later)
-typedef struct
-{
-    int z;
-} baro_raw_t;
-
-// Big-endian converters
-static inline void put_be16(uint8_t *p, uint16_t v)
-{
-    p[0] = (uint8_t)(v >> 8);
-    p[1] = (uint8_t)v;
-}
-static inline void put_be32(uint8_t *p, uint32_t v)
-{
-    p[0] = (uint8_t)(v >> 24);
-    p[1] = (uint8_t)(v >> 16);
-    p[2] = (uint8_t)(v >> 8);
-    p[3] = (uint8_t)v;
+    if (!sd.begin(SdioConfig(FIFO_SDIO)))
+    {
+        Serial.println("[ERROR] SD initialization failed!");
+        return false;
+    }
+    if (!logging_buffer.ringbuf_init(&buffer, backing_buffer, BUFFER_SIZE))
+    {
+        Serial.println("[ERROR] Buffer initialization failed!");
+        return false;
+    }
+    packet_drop = 0; // fresh buffer, fresh drop and loss counts
+    bytes_lost = 0;
+    if (!myFile.open(filename, O_WRONLY | O_CREAT | O_AT_END))
+    {
+        Serial.println("[ERROR] Could not open log file.");
+        return false;
+    }
+    Serial.println("[SUCCESS] Logging ready.");
+    return true;
 }
 
-static inline void put_be64(uint8_t *p, uint64_t v)
+bool write_to_sd(bool force)
 {
-    put_be32(p, (uint32_t)(v >> 32));
-    put_be32(p + 4, (uint32_t)v);
+    if (!myFile.isOpen())
+        return false;
+
+    static uint32_t last_sync = 0;
+    uint8_t chunk[512];
+    bool ok = true;
+
+    // write full sectors; on force, also write the partial remainder
+    while (logging_buffer.ringbuf_count(&buffer) >= sizeof(chunk) ||
+           (force && !logging_buffer.ringbuf_is_empty(&buffer)))
+    {
+        size_t n = 0;
+        while (n < sizeof(chunk) && logging_buffer.ringbuf_pop(&buffer, &chunk[n]))
+            n++;
+        size_t written = myFile.write(chunk, n);
+        if (written != n)
+        {
+            // The chunk has already left the ring buffer, so it is dropped;
+            // count it so the loss shows up in logging_lost_bytes().
+            bytes_lost += (written < n) ? (uint32_t)(n - written) : (uint32_t)n;
+            Serial.println("[ERROR] SD write failed.");
+            ok = false;
+            break;
+        }
+    }
+
+    if (force || millis() - last_sync >= 1000)
+    {
+        myFile.sync();
+        last_sync = millis();
+    }
+    return ok;
 }
 
-// Floating point big-endian.
-
-static_assert(sizeof(float) == 4 && sizeof(double) == 8, "expects IEEE-754 float/double");
-static inline void put_f32_be(uint8_t *p, float f)
+void logging_close()
 {
-    uint32_t u;
-    memcpy(&u, &f, sizeof(u));
-    put_be32(p, u);
-}
-static inline void put_f64_be(uint8_t *p, double d)
-{
-    uint64_t u;
-    memcpy(&u, &d, sizeof(u));
-    put_be64(p, u);
+    write_to_sd(true);
+    myFile.close();
 }
 
-bool initialize_sd();
-bool write_to_sd(bool force = false);
-void logging_close();
-uint32_t logging_dropped();
+uint32_t logging_dropped() { return packet_drop; }
+
+uint32_t logging_lost_bytes() { return bytes_lost; }
+
+// Whole packet is pushed or none is
+static bool write_to_buffer(const uint8_t *data, size_t len)
+{
+    if (!data || len == 0)
+        return false;
+    if (len > logging_buffer.ring_buf_remaining(&buffer))
+    {
+        packet_drop++;
+        return false;
+    }
+    for (size_t i = 0; i < len; ++i)
+        logging_buffer.ringbuf_push(&buffer, data[i]);
+    return true;
+}
+
 bool log_message(uint8_t system_code, uint8_t subsystem_code, uint8_t level,
-                 const void *payload, uint8_t payload_len);
+                 const void *payload, uint8_t payload_len)
+{
+    if (payload_len > MAX_PAYLOAD || (payload_len && !payload))
+        return false;
+
+    uint8_t msg[HEADER_SIZE + MAX_PAYLOAD + 2];
+    size_t i = 0;
+
+    put_be16(&msg[i], MESSAGE_START);
+    i += 2;
+    msg[i++] = system_code;
+    msg[i++] = subsystem_code;
+    msg[i++] = level;
+    put_be32(&msg[i], millis());
+    i += 4;
+    msg[i++] = payload_len;
+    if (payload_len)
+    {
+        memcpy(&msg[i], payload, payload_len);
+        i += payload_len;
+    }
+    put_be16(&msg[i], END_MESSAGE);
+    i += 2;
+
+    return write_to_buffer(msg, i);
+}

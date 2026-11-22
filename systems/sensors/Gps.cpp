@@ -57,7 +57,7 @@ namespace sensors
         return m_stats;
     }
 
-    bool Gps::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr)
+    bool Gps::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const
     {
         const GpsData *gps = static_cast<const GpsData *>(structPtr);
         uint8_t g[44];

@@ -94,7 +94,7 @@ namespace sensors
         return m_status;
     }
 
-    bool SensorTrust::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr)
+    bool SensorHealth::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const
     {
         const sensor_trust_limits *t = static_cast<const sensor_trust_limits *>(structPtr);
         uint8_t b[4];

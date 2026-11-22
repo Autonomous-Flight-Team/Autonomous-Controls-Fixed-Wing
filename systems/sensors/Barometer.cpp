@@ -210,7 +210,7 @@ namespace sensors
         }
     }
 
-    bool Barometer::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr)
+    bool Barometer::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const
     {
         const BaroData *baro = static_cast<const BaroData *>(structPtr);
         uint8_t b[8];

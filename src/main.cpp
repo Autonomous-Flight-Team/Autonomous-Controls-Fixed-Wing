@@ -1,11 +1,11 @@
 #include <Arduino.h>
 #include "logging_subsystem.h"
 #include "logging_interface.h"
+#include "SensorHealth.h"
 #include "Barometer.h"
 #include "Gps.h"
 #include "ImuK.h"
 #include "Pito.h"
-#include "SensorHealth.h"
 
 #ifndef CALL_GPS
 #define CALL_GPS 10
@@ -38,32 +38,32 @@ static Periodic baro_tick(CALL_BARO);
 static Periodic gps_tick(CALL_GPS);
 static Periodic pitot_tick(CALL_PITOT);
 
-static ImuLogger imu_logger;
-static BaroLogger baro_logger;
-static GpsLogger gps_logger;
-static PitotLogger pitot_logger;
-static SensorTrustLogger trust_logger;
+static sensors::Barometer baro_logger;
+static sensors::ImuK imu_logger;
+static sensors::Gps gps_logger;
+static sensors::Pito pitot_logger;
+static sensors::SensorHealth health_logger;
 
 static bool logging_ok = false;
 static uint32_t write_errors = 0;
 static elapsedMillis status_timer, blink_timer;
 
-static bool read_imu(ImuData &d)
+static bool read_imu(sensors::ImuData &d)
 {
     d = {0.0f, 0.0f, 9.81f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, -0.4f}; // TODO real IMU read
     return true;
 }
-static bool read_baro(BaroData &d)
+static bool read_baro(sensors::BaroData &d)
 {
     d = {21.5f, 101325.0f}; // TODO real barometer read
     return true;
 }
-static bool read_gps(GpsData &d)
+static bool read_gps(sensors::GpsData &d)
 {
     d = {47.6062, -122.3321, 56.0f, 0.0f, 0.0f, 0.0f, 0.0f, 22, 13, 45, 59, 0}; // TODO real GPS read
     return true;
 }
-static bool read_pitot(PitoData &d)
+static bool read_pitot(sensors::PitoData &d)
 {
     d = {101325.0f, 21.5f}; // TODO real pitot read
     return true;
@@ -83,8 +83,8 @@ void setup()
     else
     {
         // Record the trust thresholds once at the start of every run.
-        sensor_trust_limits limits = {3, 10, 5, 20}; // TODO real values
-        trust_logger.loggable(SENSOR, SUB_SENSOR_TRUST, &limits);
+        sensors::sensor_trust_limits limits = {3, 10, 5, 20}; // TODO real values
+        health_logger.loggable(SENSOR, SUB_SENSOR_TRUST, &limits);
     }
 }
 
@@ -92,28 +92,28 @@ void loop()
 {
     if (imu_tick.due())
     {
-        ImuData imu;
+        sensors::ImuData imu;
         if (read_imu(imu) && logging_ok)
             imu_logger.loggable(SENSOR, SUB_IMU, &imu);
     }
 
     if (baro_tick.due())
     {
-        BaroData baro;
+        sensors::BaroData baro;
         if (read_baro(baro) && logging_ok)
             baro_logger.loggable(SENSOR, SUB_BARO, &baro);
     }
 
     if (gps_tick.due())
     {
-        GpsData gps;
+        sensors::GpsData gps;
         if (read_gps(gps) && logging_ok)
             gps_logger.loggable(SENSOR, SUB_GPS, &gps);
     }
 
     if (pitot_tick.due())
     {
-        PitoData pitot;
+        sensors::PitoData pitot;
         if (read_pitot(pitot) && logging_ok)
             pitot_logger.loggable(SENSOR, SUB_PITOT, &pitot);
     }
