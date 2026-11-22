@@ -23,7 +23,7 @@ namespace sensors
         bool ok = sensor.begin();
         m_health.begin(ok);
 
-        return;
+        return true;
     }
 
     sensor_status ImuK::getStatus()

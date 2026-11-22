@@ -22,6 +22,7 @@ namespace sensors
     bool Gps::begin()
     {
         bool ok = sensor.Begin(baud);
+        return ok;
     }
 
     sensor_status Gps::getStatus()
