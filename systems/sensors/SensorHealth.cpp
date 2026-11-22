@@ -29,6 +29,7 @@ namespace sensors
         num_failures = 0;
         last_sample = 0;
         is_fresh = false;
+        return start_succeeded;
     }
 
     void SensorHealth::update_sensor_freshness(bool read_succeded)
