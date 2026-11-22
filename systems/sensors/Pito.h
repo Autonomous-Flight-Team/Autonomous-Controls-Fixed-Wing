@@ -1,5 +1,10 @@
-#ifndef PITO_
-#define PITO_
+#ifndef GOOSE_SENSORS_PITO_H_
+#define GOOSE_SENSORS_PITO_H_
+
+// HARDWARE ONLY (GNC_HARDWARE_BUILD). See systems/README.MD.
+#ifndef GNC_HARDWARE_BUILD
+#error "Pito.h is hardware-only. Include sensor_suite.h instead."
+#endif
 
 #include <cstdint>
 
@@ -7,16 +12,12 @@
 #include "SensorHealth.h"
 #include "SensorInterface.h"
 #include "SensorStatus.h"
+#include "sensor_packets.h"
 #include "logging_interface.h"
 
 namespace sensors
 {
 
-    struct PitoData
-    {
-        float pressure_Pa; // Pressure in pascals 🧯
-        float die_temp_C;  // Temperature in celsius 🌡️
-    };
 
     class Pito : public logging
     {
@@ -33,6 +34,8 @@ namespace sensors
 
         bool loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const override;
 
+        SensorHealth &health() { return m_health; }
+
     private:
         bfs::Ms4525do sensor;
 
@@ -41,4 +44,4 @@ namespace sensors
         SensorHealth m_health;
     };
 }
-#endif
+#endif // GOOSE_SENSORS_PITO_H_

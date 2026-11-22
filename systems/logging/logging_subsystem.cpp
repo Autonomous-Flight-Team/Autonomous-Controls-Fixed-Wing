@@ -1,3 +1,6 @@
+// Arduino.h and SdFat.h are the real libraries on the Teensy and the fakes in
+// test/stubs/ in the native build (-I test/stubs), which is how this file is
+// unit tested on a PC without an SD card.
 #include <Arduino.h>
 #include <string.h>
 #include "SdFat.h"

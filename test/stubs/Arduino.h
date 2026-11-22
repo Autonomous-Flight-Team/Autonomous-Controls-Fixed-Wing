@@ -1,6 +1,7 @@
 // Minimal Arduino stand-in for the native (PC) test build.
 // Only what the logging subsystem uses. Tests set g_millis directly.
-#pragma once
+#ifndef GOOSE_STUBS_ARDUINO_H_
+#define GOOSE_STUBS_ARDUINO_H_
 
 #include <stdint.h>
 #include <stdio.h>
@@ -16,3 +17,5 @@ struct SerialStub {
 };
 
 extern SerialStub Serial;
+
+#endif // GOOSE_STUBS_ARDUINO_H_

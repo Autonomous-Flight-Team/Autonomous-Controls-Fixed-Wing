@@ -1,3 +1,6 @@
+// HARDWARE ONLY: compiled to nothing unless GNC_HARDWARE_BUILD is defined
+// (env:teensy41), so the native build can include all of systems/.
+#ifdef GNC_HARDWARE_BUILD
 
 #include <cstdint>
 
@@ -13,6 +16,8 @@
 
 namespace sensors
 {
+    static constexpr float G_MPS2 = 9.80665f;
+
     ImuK::ImuK()
     {
         // TODO
@@ -20,7 +25,7 @@ namespace sensors
 
     bool ImuK::begin()
     {
-        bool ok = sensor.begin();
+        bool ok = sensor.begin() != 0; // begin() returns 0 on failure
         m_health.begin(ok);
 
         return ok;
@@ -33,7 +38,7 @@ namespace sensors
 
     bool ImuK::isFresh()
     {
-        return false; // PLACEHOLDER
+        return m_health.fresh();
     }
 
     ImuData ImuK::get()
@@ -73,31 +78,22 @@ namespace sensors
             m_stats.gyroX = sensor.calcGyro(sensor.gx);
             m_stats.gyroY = sensor.calcGyro(sensor.gy);
             m_stats.gyroZ = sensor.calcGyro(sensor.gz);
-            m_stats.accelX = sensor.calcGyro(sensor.ax);
-            m_stats.accelY = sensor.calcGyro(sensor.ay);
-            m_stats.accelZ = sensor.calcGyro(sensor.az);
-            m_stats.magX = sensor.calcGyro(sensor.mx);
-            m_stats.magY = sensor.calcGyro(sensor.my);
-            m_stats.magZ = sensor.calcGyro(sensor.mz);
+            // calcAccel() is in g; ImuData stores m/s^2
+            m_stats.accelX = sensor.calcAccel(sensor.ax) * G_MPS2;
+            m_stats.accelY = sensor.calcAccel(sensor.ay) * G_MPS2;
+            m_stats.accelZ = sensor.calcAccel(sensor.az) * G_MPS2;
+            m_stats.magX = sensor.calcMag(sensor.mx);
+            m_stats.magY = sensor.calcMag(sensor.my);
+            m_stats.magZ = sensor.calcMag(sensor.mz);
         }
         return m_stats;
     }
 
     bool ImuK::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const
     {
-        const ImuData *imu = static_cast<const ImuData *>(structPtr);
-        uint8_t b[36];
-
-        put_f32_be(&b[0], imu->accelX);
-        put_f32_be(&b[4], imu->accelY);
-        put_f32_be(&b[8], imu->accelZ);
-        put_f32_be(&b[12], imu->gyroX);
-        put_f32_be(&b[16], imu->gyroY);
-        put_f32_be(&b[20], imu->gyroZ);
-        put_f32_be(&b[24], imu->magX);
-        put_f32_be(&b[28], imu->magY);
-        put_f32_be(&b[32], imu->magZ);
-
-        return log_message(system_code, subsystem_code, LOG_INFO, b, sizeof(b));
+        return log_imu(system_code, subsystem_code,
+                      *static_cast<const ImuData *>(structPtr));
     }
 }
+
+#endif // GNC_HARDWARE_BUILD

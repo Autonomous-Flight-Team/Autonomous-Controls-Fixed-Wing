@@ -30,6 +30,7 @@ jobs:
           python-version: "3.12"
       - run: pip install --upgrade platformio
       - run: pio run -e teensy41
+      - run: pio run -e teensy41_dummy
       - uses: actions/upload-artifact@v4
         with:
           name: goose-firmware-${{ github.sha }}

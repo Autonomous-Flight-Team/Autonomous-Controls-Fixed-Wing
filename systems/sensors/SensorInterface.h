@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GOOSE_SENSORS_SENSOR_INTERFACE_H_
+#define GOOSE_SENSORS_SENSOR_INTERFACE_H_
 
 #include "SensorStatus.h"
 
@@ -8,3 +9,5 @@ namespace sensors {
         public: bool is_fresh();
     };
 }
+
+#endif // GOOSE_SENSORS_SENSOR_INTERFACE_H_

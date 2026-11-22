@@ -1,5 +1,10 @@
-#ifndef IMU_
-#define IMU_
+#ifndef GOOSE_SENSORS_IMU_K_H_
+#define GOOSE_SENSORS_IMU_K_H_
+
+// HARDWARE ONLY (GNC_HARDWARE_BUILD). See systems/README.MD.
+#ifndef GNC_HARDWARE_BUILD
+#error "ImuK.h is hardware-only. Include sensor_suite.h instead."
+#endif
 
 #include <cstdint>
 
@@ -7,26 +12,14 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-#include "logging_interface.h"
 #include "SensorHealth.h"
 #include "SensorInterface.h"
 #include "SensorStatus.h"
+#include "sensor_packets.h"
 #include "logging_interface.h"
 
 namespace sensors
 {
-    struct ImuData
-    {
-        float accelX; // X-axis Acceleration in m/s^2 🚀
-        float accelY; // Y-axis Acceleration in m/s^2 🚀
-        float accelZ; // Z-axis Acceleration in m/s^2 🚀
-        float gyroX;  // X-axis Angular Velocity in deg/sec 🥏
-        float gyroY;  // Y-axis Angular Velocity in deg/sec 🥏
-        float gyroZ;  // Z-axis Angular Velocity in deg/sec 🥏
-        float magX;   // X-axis mag in gauss 🧲
-        float magY;   // Y-axis mag in gauss 🧲
-        float magZ;   // Z-axis mag in gauss 🧲
-    };
 
     class ImuK : public logging
     {
@@ -43,6 +36,8 @@ namespace sensors
 
         bool loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const override;
 
+        SensorHealth &health() { return m_health; }
+
     private:
         ImuData m_stats;
 
@@ -51,4 +46,4 @@ namespace sensors
         LSM9DS1 sensor;
     };
 }
-#endif //IMU
+#endif // GOOSE_SENSORS_IMU_K_H_

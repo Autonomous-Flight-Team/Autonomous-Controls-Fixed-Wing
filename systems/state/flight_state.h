@@ -1,5 +1,5 @@
-#ifndef FLIGHT_STATE_H_
-#define FLIGHT_STATE_H_
+#ifndef GOOSE_STATE_FLIGHT_STATE_H_
+#define GOOSE_STATE_FLIGHT_STATE_H_
 
 #include "fault_table.h"
 #include "system_state.h"
@@ -129,4 +129,4 @@ class FlightStateFSM {
     FlightTransition m_last_transition{};
 };
 
-#endif // FLIGHT_STATE_H_
+#endif // GOOSE_STATE_FLIGHT_STATE_H_

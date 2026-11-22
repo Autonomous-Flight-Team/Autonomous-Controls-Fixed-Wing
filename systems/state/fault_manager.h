@@ -1,5 +1,5 @@
-#ifndef FAULT_MANAGER_H_
-#define FAULT_MANAGER_H_
+#ifndef GOOSE_STATE_FAULT_MANAGER_H_
+#define GOOSE_STATE_FAULT_MANAGER_H_
 
 #include "fault_table.h"
 #include <cstdint>
@@ -80,4 +80,4 @@ class FaultManager {
     FaultResponse m_response = FaultResponse::kNone;
 };
 
-#endif // FAULT_MANAGER_H_
+#endif // GOOSE_STATE_FAULT_MANAGER_H_

@@ -1,5 +1,5 @@
-#ifndef SYSTEM_STATE_H_
-#define SYSTEM_STATE_H_
+#ifndef GOOSE_STATE_SYSTEM_STATE_H_
+#define GOOSE_STATE_SYSTEM_STATE_H_
 
 #include "fault_table.h"
 #include <cstdint>
@@ -105,4 +105,4 @@ class SystemStateFSM {
     SystemTransition m_last_transition{};
 };
 
-#endif // SYSTEM_STATE_H_
+#endif // GOOSE_STATE_SYSTEM_STATE_H_

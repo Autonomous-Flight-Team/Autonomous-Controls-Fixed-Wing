@@ -1,5 +1,5 @@
-#ifndef FAULT_TABLE_H_
-#define FAULT_TABLE_H_
+#ifndef GOOSE_STATE_FAULT_TABLE_H_
+#define GOOSE_STATE_FAULT_TABLE_H_
 
 #include <cstddef>
 #include <cstdint>
@@ -127,4 +127,4 @@ const char* to_string(FaultClass c);
 const char* to_string(FaultResponse r);
 inline const char* to_string(FaultId id) { return fault_def(id).name; }
 
-#endif // FAULT_TABLE_H_
+#endif // GOOSE_STATE_FAULT_TABLE_H_

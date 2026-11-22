@@ -1,3 +1,6 @@
+// HARDWARE ONLY: compiled to nothing unless GNC_HARDWARE_BUILD is defined
+// (env:teensy41), so the native build can include all of systems/.
+#ifdef GNC_HARDWARE_BUILD
 
 #include <cstdint>
 
@@ -31,12 +34,14 @@ namespace sensors
 
     bool Pito::isFresh()
     {
-        return false; // PLACEHOLDER
+        return m_health.fresh();
     }
 
     PitoData Pito::get()
     {
-        if (sensor.Read())
+        bool ok = sensor.Read();
+        m_health.update_sensor_freshness(ok);
+        if (ok)
         {
             m_stats.pressure_Pa = sensor.pres_pa();
             m_stats.die_temp_C = sensor.die_temp_c();
@@ -46,12 +51,9 @@ namespace sensors
 
     bool Pito::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const
     {
-        const PitoData *pitot = static_cast<const PitoData *>(structPtr);
-        uint8_t b[8];
-
-        put_f32_be(&b[0], pitot->pressure_Pa);
-        put_f32_be(&b[4], pitot->die_temp_C);
-
-        return log_message(system_code, subsystem_code, LOG_INFO, b, sizeof(b));
+        return log_pitot(system_code, subsystem_code,
+                      *static_cast<const PitoData *>(structPtr));
     }
 }
+
+#endif // GNC_HARDWARE_BUILD

@@ -5,6 +5,7 @@
 #include <SdFat.h>   // stub: g_sd (records what the logger writes)
 #include "logging_subsystem.h"
 #include "logging_interface.h"
+#include "sensor_packets.h"
 
 typedef std::vector<uint8_t> Bytes;
 
@@ -90,36 +91,70 @@ void test_init_clears_buffer_and_drop_counter(void)
 
 // ---- packet encoding -------------------------------------------------------
 
-void test_imu_packet_matches_golden_bytes(void)
-{
-    // Same vector is checked by the Python decoder tests.
-    ImuLogger imu;
-    imu_raw_t s = {1, 255, -3};
-    TEST_ASSERT_TRUE(imu.loggable(SENSOR, SUB_IMU, &s));
+// ---- sensor payload encoding (systems/sensors/sensor_packets.h) ----------
+// Expected bytes come from Python struct.pack with the same formats as
+// decoder.py, so a layout change on either side fails here.
 
-    Bytes expected = {0xFE, 0xED, 0x00, 0x01, 0x00, 0x01, 0x02, 0x03, 0x04, 0x0C,
-                      0x00, 0x00, 0x00, 0x01,
-                      0x00, 0x00, 0x00, 0xFF,
-                      0xFF, 0xFF, 0xFF, 0xFD,
-                      0xDE, 0xAD};
-    assert_bytes(expected, flush_all());
+void test_imu_packet_matches_golden_bytes(void) {
+    sensors::ImuData d = {1.0f, -2.5f, 0.5f, 0.0f, 2.0f, -1.0f,
+                          0.25f, -0.125f, 4.0f};
+    TEST_ASSERT_TRUE(sensors::log_imu(SENSOR, SUB_IMU, d));
+    Bytes payload = {
+        0x3F, 0x80, 0x00, 0x00, 0xC0, 0x20, 0x00, 0x00,
+        0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x40, 0x00, 0x00, 0x00, 0xBF, 0x80, 0x00, 0x00,
+        0x3E, 0x80, 0x00, 0x00, 0xBE, 0x00, 0x00, 0x00,
+        0x40, 0x80, 0x00, 0x00,
+    };
+    TEST_ASSERT_EQUAL_UINT32(sensors::IMU_PAYLOAD_LEN, payload.size());
+    assert_bytes(make_packet(SENSOR, SUB_IMU, LOG_INFO, 0x01020304, payload),
+                 flush_all());
 }
 
-void test_baro_logger_encodes_negative_value_big_endian(void)
-{
-    BaroLogger baro;
-    baro_raw_t s = {-2};
-    TEST_ASSERT_TRUE(baro.loggable(SENSOR, SUB_BARO, &s));
-    assert_bytes(make_packet(SENSOR, SUB_BARO, LOG_INFO, 0x01020304, {0xFF, 0xFF, 0xFF, 0xFE}), flush_all());
+void test_baro_packet_matches_golden_bytes(void) {
+    sensors::BaroData d = {21.5f, 101325.0f};
+    TEST_ASSERT_TRUE(sensors::log_baro(SENSOR, SUB_BARO, d));
+    Bytes payload = {
+        0x41, 0xAC, 0x00, 0x00, 0x47, 0xC5, 0xE6, 0x80,
+    };
+    assert_bytes(make_packet(SENSOR, SUB_BARO, LOG_INFO, 0x01020304, payload),
+                 flush_all());
 }
 
-void test_imu_logger_encodes_multibyte_values_big_endian(void)
-{
-    ImuLogger imu;
-    imu_raw_t s = {0x01020304, (int)0x80000000, 0x7FFFFFFF};
-    TEST_ASSERT_TRUE(imu.loggable(SENSOR, SUB_IMU, &s));
-    Bytes payload = {0x01, 0x02, 0x03, 0x04, 0x80, 0x00, 0x00, 0x00, 0x7F, 0xFF, 0xFF, 0xFF};
-    assert_bytes(make_packet(SENSOR, SUB_IMU, LOG_INFO, 0x01020304, payload), flush_all());
+void test_pitot_packet_matches_golden_bytes(void) {
+    sensors::PitoData d = {-12.5f, 30.0f};
+    TEST_ASSERT_TRUE(sensors::log_pitot(SENSOR, SUB_PITOT, d));
+    Bytes payload = {
+        0xC1, 0x48, 0x00, 0x00, 0x41, 0xF0, 0x00, 0x00,
+    };
+    assert_bytes(make_packet(SENSOR, SUB_PITOT, LOG_INFO, 0x01020304, payload),
+                 flush_all());
+}
+
+void test_gps_packet_matches_golden_bytes(void) {
+    sensors::GpsData d = {47.5, -122.25, 56.0f, 3.5f, 1.0f, -0.5f, 0.25f,
+                          22, 13, 45, 59, -1000};
+    TEST_ASSERT_TRUE(sensors::log_gps(SENSOR, SUB_GPS, d));
+    Bytes payload = {
+        0x40, 0x47, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0xC0, 0x5E, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x42, 0x60, 0x00, 0x00, 0x40, 0x60, 0x00, 0x00,
+        0x3F, 0x80, 0x00, 0x00, 0xBF, 0x00, 0x00, 0x00,
+        0x3E, 0x80, 0x00, 0x00, 0x16, 0x0D, 0x2D, 0x3B,
+        0xFF, 0xFF, 0xFC, 0x18,
+    };
+    TEST_ASSERT_EQUAL_UINT32(sensors::GPS_PAYLOAD_LEN, payload.size());
+    assert_bytes(make_packet(SENSOR, SUB_GPS, LOG_INFO, 0x01020304, payload),
+                 flush_all());
+}
+
+void test_trust_packet_matches_golden_bytes(void) {
+    sensors::sensor_trust_limits d = {3, 10, 5, 20};
+    TEST_ASSERT_TRUE(sensors::log_trust(SENSOR, SUB_SENSOR_TRUST, d));
+    Bytes payload = {3, 10, 5, 20};
+    assert_bytes(make_packet(SENSOR, SUB_SENSOR_TRUST, LOG_INFO, 0x01020304,
+                             payload),
+                 flush_all());
 }
 
 void test_timestamp_is_big_endian(void)
@@ -446,8 +481,10 @@ int main(int, char **)
     RUN_TEST(test_init_fails_when_file_cannot_open);
     RUN_TEST(test_init_clears_buffer_and_drop_counter);
     RUN_TEST(test_imu_packet_matches_golden_bytes);
-    RUN_TEST(test_baro_logger_encodes_negative_value_big_endian);
-    RUN_TEST(test_imu_logger_encodes_multibyte_values_big_endian);
+    RUN_TEST(test_baro_packet_matches_golden_bytes);
+    RUN_TEST(test_pitot_packet_matches_golden_bytes);
+    RUN_TEST(test_gps_packet_matches_golden_bytes);
+    RUN_TEST(test_trust_packet_matches_golden_bytes);
     RUN_TEST(test_timestamp_is_big_endian);
     RUN_TEST(test_system_subsystem_and_level_are_encoded);
     RUN_TEST(test_empty_payload_with_null_pointer_is_valid);

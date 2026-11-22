@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GOOSE_INCLUDE_UNITY_CONFIG_H_
+#define GOOSE_INCLUDE_UNITY_CONFIG_H_
 
 // Intentionally empty for the native build -- default Unity output
 // works fine on desktop. Fill in with Serial-based output macros
@@ -7,3 +8,5 @@
 
 // Editor had read squiggles and wanted this file somewhere despite this being optional for
 // actually building tests
+
+#endif // GOOSE_INCLUDE_UNITY_CONFIG_H_

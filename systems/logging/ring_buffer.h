@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GOOSE_LOGGING_RING_BUFFER_H_
+#define GOOSE_LOGGING_RING_BUFFER_H_
 #include <stdint.h>
 
 typedef struct
@@ -50,3 +51,5 @@ public:
         return true;
     }
 };
+
+#endif // GOOSE_LOGGING_RING_BUFFER_H_

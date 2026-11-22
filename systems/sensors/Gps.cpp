@@ -1,3 +1,6 @@
+// HARDWARE ONLY: compiled to nothing unless GNC_HARDWARE_BUILD is defined
+// (env:teensy41), so the native build can include all of systems/.
+#ifdef GNC_HARDWARE_BUILD
 
 #include <cstdint>
 
@@ -10,18 +13,21 @@
 #include "SensorInterface.h"
 #include "SensorStatus.h"
 
-#define baud 921600
+// Must match the baud the receiver was configured for (u-center).
+#ifndef GOOSE_GPS_BAUD
+#define GOOSE_GPS_BAUD 921600
+#endif
 
 namespace sensors
 {
-    Gps::Gps()
+    Gps::Gps() : sensor(&Serial1)
     {
-        bfs::Ubx sensor(&Serial1);
     }
 
     bool Gps::begin()
     {
-        bool ok = sensor.Begin(baud);
+        bool ok = sensor.Begin(GOOSE_GPS_BAUD);
+        m_health.begin(ok);
         return ok;
     }
 
@@ -32,20 +38,19 @@ namespace sensors
 
     bool Gps::isFresh()
     {
-        return false; // PLACEHOLDER
+        return m_health.fresh();
     }
 
     GpsData Gps::get()
     {
-        bool fail;
-        fail = sensor.Read();
-        m_health.update_sensor_freshness(fail);
-        if (!fail)
+        bool got_new = sensor.Read(); // true when a new fix arrived
+        m_health.update_sensor_freshness(got_new);
+        if (got_new)
         {
             m_stats.latitude = sensor.lat_deg();
             m_stats.longitude = sensor.lon_deg();
             m_stats.altitude = sensor.alt_wgs84_m();
-            m_stats.gr_speed = sensor.north_vel_mps();
+            m_stats.gr_speed = sensor.gnd_spd_mps();
             m_stats.n_vel = sensor.north_vel_mps();
             m_stats.e_vel = sensor.east_vel_mps();
             m_stats.d_vel = sensor.down_vel_mps();
@@ -60,22 +65,9 @@ namespace sensors
 
     bool Gps::loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const
     {
-        const GpsData *gps = static_cast<const GpsData *>(structPtr);
-        uint8_t g[44];
-
-        put_f64_be(&g[0], gps->latitude);
-        put_f64_be(&g[8], gps->longitude);
-        put_f32_be(&g[16], gps->altitude);
-        put_f32_be(&g[20], gps->gr_speed);
-        put_f32_be(&g[24], gps->n_vel);
-        put_f32_be(&g[28], gps->e_vel);
-        put_f32_be(&g[32], gps->d_vel);
-        g[36] = (uint8_t)gps->utc_day;
-        g[37] = (uint8_t)gps->utc_hour;
-        g[38] = (uint8_t)gps->utc_min;
-        g[39] = (uint8_t)gps->utc_sec;
-        put_be32(&g[40], (uint32_t)gps->utc_nanosec);
-
-        return log_message(system_code, subsystem_code, LOG_INFO, g, sizeof(g));
+        return log_gps(system_code, subsystem_code,
+                      *static_cast<const GpsData *>(structPtr));
     }
 };
+
+#endif // GNC_HARDWARE_BUILD

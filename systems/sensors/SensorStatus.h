@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GOOSE_SENSORS_SENSOR_STATUS_H_
+#define GOOSE_SENSORS_SENSOR_STATUS_H_
 
 namespace sensors {
     enum class sensor_status {
@@ -8,3 +9,5 @@ namespace sensors {
         FAILED
     };
 }
+
+#endif // GOOSE_SENSORS_SENSOR_STATUS_H_

@@ -1,6 +1,7 @@
 // Minimal SdFat stand-in for the native (PC) test build.
 // Everything the logger writes lands in g_sd so tests can inspect it.
-#pragma once
+#ifndef GOOSE_STUBS_SD_FAT_H_
+#define GOOSE_STUBS_SD_FAT_H_
 
 #include <fcntl.h>
 #include <stddef.h>
@@ -72,3 +73,5 @@ public:
 private:
     bool is_open_ = false;
 };
+
+#endif // GOOSE_STUBS_SD_FAT_H_
