@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, development]
   pull_request:
   workflow_dispatch:
 
@@ -29,6 +29,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install --upgrade platformio
+      # MAVLink C headers are gitignored; generate them from goose.xml (+ vendored common.xml)
+      - run: pip install pymavlink==2.4.50 lxml
+      - run: python tools/gen_mavlink.py
       - run: pio run -e teensy41
       - uses: actions/upload-artifact@v4
         with:
@@ -54,4 +57,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install --upgrade platformio
+      # MAVLink C headers are gitignored; generate them from goose.xml (+ vendored common.xml)
+      - run: pip install pymavlink==2.4.50 lxml
+      - run: python tools/gen_mavlink.py
       - run: pio test -e native -v
