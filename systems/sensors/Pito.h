@@ -6,16 +6,20 @@
 #include "SensorHealth.h"
 #include "SensorInterface.h"
 #include "SensorStatus.h"
+#include "logging_interface.h"
 
-namespace sensors {
+namespace sensors
+{
 
-    struct PitoData {
-        float pressure_Pa; //Pressure in pascals 🧯
-        float die_temp_C; //Temperature in celsius 🌡️
+    struct PitoData
+    {
+        float pressure_Pa; // Pressure in pascals 🧯
+        float die_temp_C;  // Temperature in celsius 🌡️
     };
 
-    class Pito {
-     public:
+    class Pito : public logging
+    {
+    public:
         Pito();
 
         bool begin();
@@ -26,7 +30,9 @@ namespace sensors {
 
         PitoData get();
 
-     private:
+        bool loggable();
+
+    private:
         bfs::Ms4525do sensor;
 
         PitoData m_stats;

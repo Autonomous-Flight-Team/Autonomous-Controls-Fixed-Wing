@@ -18,8 +18,16 @@ LEVELS = {0x00: "INFO", 0x0F: "WARN", 0xFF: "ERROR"}
 # (system, subsystem) -> (name, struct format, field names)
 # ">" = big-endian; Teensy `int` is 32-bit. Add new sensors here.
 DECODERS = {
-    (0x00, 0x01): ("IMU", ">3i", ("x", "y", "z")),
+    (0x00, 0x01): ("IMU", ">9f", ("accelX", "accelY", "accelZ", "gyroX", "gyroY", "gyroZ",
+                                  "magX", "magY", "magZ")),
     (0x00, 0x02): ("BARO", ">i", ("z",)),
+    (0x00, 0x04): ("PITOT", ">2f", ("pressure_Pa", "die_temp_C")),
+    (0x00, 0x05): ("SENSOR_TRUST", ">4B", ("fail_threshold", "full_fail_threshold",
+                                           "success_threshold_from_degraded",
+                                           "success_threshold_from_failed")),
+    (0x00, 0x03): ("GPS", ">2d5f4bi", ("latitude", "longitude", "altitude", "gr_speed",
+                                       "n_vel", "e_vel", "d_vel",
+                                       "utc_day", "utc_hour", "utc_min", "utc_sec", "utc_nanosec")),
 }
 
 

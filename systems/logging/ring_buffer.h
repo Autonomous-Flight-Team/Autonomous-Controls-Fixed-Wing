@@ -1,7 +1,8 @@
 #pragma once
 #include <stdint.h>
 
-typedef struct {
+typedef struct
+{
     uint8_t *buf;
     volatile uint32_t head; // written ONLY by producer
     volatile uint32_t tail; // written ONLY by consumer
@@ -9,9 +10,11 @@ typedef struct {
     uint32_t mask;          // size - 1
 } ringbuf_t;
 
-class RingBuffer {
+class RingBuffer
+{
 public:
-    bool ringbuf_init(ringbuf_t *rb, uint8_t *buf, uint32_t size) {
+    bool ringbuf_init(ringbuf_t *rb, uint8_t *buf, uint32_t size)
+    {
         if (!rb || !buf || size == 0 || (size & (size - 1)) != 0)
             return false; // size must be a power of two
         rb->buf = buf;
@@ -29,7 +32,8 @@ public:
     bool ringbuf_is_full(ringbuf_t *rb) { return (rb->head - rb->tail) == rb->size; }
     bool ringbuf_is_empty(ringbuf_t *rb) { return rb->head == rb->tail; }
 
-    bool ringbuf_push(ringbuf_t *rb, uint8_t byte) {
+    bool ringbuf_push(ringbuf_t *rb, uint8_t byte)
+    {
         if (ringbuf_is_full(rb))
             return false;
         rb->buf[rb->head & rb->mask] = byte;
@@ -37,7 +41,8 @@ public:
         return true;
     }
 
-    bool ringbuf_pop(ringbuf_t *rb, uint8_t *byte) {
+    bool ringbuf_pop(ringbuf_t *rb, uint8_t *byte)
+    {
         if (ringbuf_is_empty(rb))
             return false;
         *byte = rb->buf[rb->tail & rb->mask];
