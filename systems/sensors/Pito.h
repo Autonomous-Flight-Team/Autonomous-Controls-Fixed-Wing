@@ -1,4 +1,5 @@
-#pragma once
+#ifndef PITO_
+#define PITO_
 
 #include <cstdint>
 
@@ -40,3 +41,4 @@ namespace sensors
         SensorHealth m_health;
     };
 }
+#endif

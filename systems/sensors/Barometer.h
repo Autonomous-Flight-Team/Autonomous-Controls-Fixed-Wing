@@ -1,4 +1,5 @@
-#pragma once
+#ifndef BARO_
+#define BARO_
 
 #include <cstdint>
 
@@ -219,4 +220,5 @@ namespace sensors
 
         SensorHealth m_health;
     };
-}
+} 
+#endif  //BARO_

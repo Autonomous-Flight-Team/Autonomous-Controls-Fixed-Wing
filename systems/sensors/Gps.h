@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GPS_
+#define GPS_
 
 #include <cstdint>
 
@@ -52,3 +53,4 @@ namespace sensors
         SensorHealth m_health;
     };
 }
+#endif //GPS_

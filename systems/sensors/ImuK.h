@@ -1,4 +1,5 @@
-#pragma once
+#ifndef IMU_
+#define IMU_
 
 #include <cstdint>
 
@@ -50,3 +51,4 @@ namespace sensors
         LSM9DS1 sensor;
     };
 }
+#endif //IMU
