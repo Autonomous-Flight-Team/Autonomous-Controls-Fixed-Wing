@@ -13,6 +13,16 @@ namespace sensors
             }
         }
     }
+    SensorHealth::SensorHealth(std::uint8_t fail_threshold_,  
+            std::uint8_t full_fail_threshold_, 
+            std::uint8_t success_threshold_from_degraded_,
+            std::uint8_t success_threshold_from_failed_) {
+            
+        m_cfg.fail_threshold = fail_threshold_;
+        m_cfg.full_fail_threshold = full_fail_threshold_;
+        m_cfg.success_threshold_from_degraded = success_threshold_from_degraded_;
+        m_cfg.success_threshold_from_failed = success_threshold_from_failed_;
+    }
 
     // 😀
     bool SensorHealth::begin(bool start_succeeded)
@@ -28,7 +38,6 @@ namespace sensors
         num_successes = 0;
         num_failures = 0;
         last_sample = 0;
-        is_fresh = false;
         return start_succeeded;
     }
 
@@ -40,22 +49,22 @@ namespace sensors
             num_failures = 0;
             switch (m_status)
             {
-            case sensor_status::FAILED:
-                if (num_successes > m_cfg.success_threshold_from_failed)
-                {
-                    // A failed sensor is now succeeding
-                    num_successes = 0;
-                    m_status = sensor_status::DEGRADED;
-                }
-            case sensor_status::DEGRADED:
-                if (num_successes > m_cfg.success_threshold_from_degraded)
-                {
-                    // A degraded sensor is now failing
-                    num_successes = 0;
-                    m_status = sensor_status::NOMINAL;
-                }
-            default:
-                break;
+                case sensor_status::FAILED:
+                    if (num_successes > m_cfg.success_threshold_from_failed)
+                    {
+                        // A failed sensor is now succeeding
+                        num_successes = 0;
+                        m_status = sensor_status::DEGRADED;
+                    }
+                case sensor_status::DEGRADED:
+                    if (num_successes > m_cfg.success_threshold_from_degraded)
+                    {
+                        // A degraded sensor is now failing
+                        num_successes = 0;
+                        m_status = sensor_status::NOMINAL;
+                    }
+                default:
+                    break;
             }
         }
         else
@@ -65,18 +74,18 @@ namespace sensors
             switch (m_status)
             {
             case sensor_status::NOMINAL:
-                if (num_successes > m_cfg.fail_threshold)
+                if (num_failures > m_cfg.fail_threshold)
                 {
                     // A succesful sensor is now failing
                     num_failures = 0;
                     m_status = sensor_status::DEGRADED;
                 }
             case sensor_status::DEGRADED:
-                if (num_successes > m_cfg.full_fail_threshold)
+                if (num_failures > m_cfg.full_fail_threshold)
                 {
                     // A degraded sensor is still failing
                     num_failures = 0;
-                    m_status = sensor_status::NOMINAL;
+                    m_status = sensor_status::FAILED;
                 }
             default:
                 break;
@@ -87,7 +96,17 @@ namespace sensors
     void SensorHealth::degrade()
     {
         num_failures = 0;
-        m_status = sensor_status::NOMINAL;
+        switch (m_status)
+        {
+        case sensor_status::NOMINAL:
+            m_status = sensor_status::DEGRADED;
+            break;
+        case sensor_status::DEGRADED:
+            m_status = sensor_status::FAILED;
+            break;
+        default:
+            break;
+        }
     }
 
     sensor_status SensorHealth::get_status()

@@ -9,6 +9,11 @@
 #include "SensorStatus.h"
 #include "logging_interface.h"
 
+#define pito_small_fail_threshold 10
+#define pito_full_fail_threshold 10
+#define pito_small_recover_threshold 10
+#define pito_full_recover_threshold 10
+
 namespace sensors
 {
 
@@ -34,7 +39,7 @@ namespace sensors
         bool loggable(uint8_t system_code, uint8_t subsystem_code, const void *structPtr) const override;
 
     private:
-        bfs::Ms4525do sensor;
+        bfs::Ms4525do m_sensor;
 
         PitoData m_stats;
 

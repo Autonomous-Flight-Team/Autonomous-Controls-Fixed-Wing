@@ -13,14 +13,17 @@
 
 namespace sensors
 {
-    ImuK::ImuK()
+    ImuK::ImuK() : m_health(imu_small_fail_threshold,
+            imu_full_fail_threshold,
+            imu_small_recover_threshold,
+            imu_full_recover_threshold)
     {
         // TODO
     }
 
     bool ImuK::begin()
     {
-        bool ok = sensor.begin();
+        bool ok = m_sensor.begin();
         m_health.begin(ok);
 
         return ok;
@@ -33,31 +36,31 @@ namespace sensors
 
     bool ImuK::isFresh()
     {
-        return false; // PLACEHOLDER
+        return (m_health.get_status() == sensor_status::FAILED);
     }
 
     ImuData ImuK::get()
     {
         bool fail = false;
-        if (sensor.gyroAvailable())
+        if (m_sensor.gyroAvailable())
         {
-            sensor.readGyro();
+            m_sensor.readGyro();
         }
         else
         {
             fail = true;
         }
-        if (sensor.accelAvailable())
+        if (m_sensor.accelAvailable())
         {
-            sensor.readAccel();
+            m_sensor.readAccel();
         }
         else
         {
             fail = true;
         }
-        if (sensor.magAvailable())
+        if (m_sensor.magAvailable())
         {
-            sensor.readMag();
+            m_sensor.readMag();
         }
         else
         {
@@ -70,15 +73,16 @@ namespace sensors
         else
         {
             m_health.update_sensor_freshness(true);
-            m_stats.gyroX = sensor.calcGyro(sensor.gx);
-            m_stats.gyroY = sensor.calcGyro(sensor.gy);
-            m_stats.gyroZ = sensor.calcGyro(sensor.gz);
-            m_stats.accelX = sensor.calcGyro(sensor.ax);
-            m_stats.accelY = sensor.calcGyro(sensor.ay);
-            m_stats.accelZ = sensor.calcGyro(sensor.az);
-            m_stats.magX = sensor.calcGyro(sensor.mx);
-            m_stats.magY = sensor.calcGyro(sensor.my);
-            m_stats.magZ = sensor.calcGyro(sensor.mz);
+            m_stats.gyroX = m_sensor.calcGyro(m_sensor.gx);
+            m_stats.gyroY = m_sensor.calcGyro(m_sensor.gy);
+            m_stats.gyroZ = m_sensor.calcGyro(m_sensor.gz);
+            //(Converting from gravitaional accel to m/s^2) 👍
+            m_stats.accelX = m_sensor.calcAccel(m_sensor.ax) * (9.80665f);
+            m_stats.accelY = m_sensor.calcAccel(m_sensor.ay) * (9.80665f);
+            m_stats.accelZ = m_sensor.calcAccel(m_sensor.az) * (9.80665f);
+            m_stats.magX = m_sensor.calcMag(m_sensor.mx);
+            m_stats.magY = m_sensor.calcMag(m_sensor.my);
+            m_stats.magZ = m_sensor.calcMag(m_sensor.mz);
         }
         return m_stats;
     }

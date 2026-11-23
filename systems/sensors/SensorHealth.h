@@ -17,6 +17,11 @@ namespace sensors
     class SensorHealth : public logging
     {
     public:
+        //Constructor with sensor limits
+        SensorHealth(std::uint8_t fail_threshold_,  
+            std::uint8_t full_fail_threshold_, 
+            std::uint8_t success_threshold_from_degraded_,
+            std::uint8_t success_threshold_from_failed_);
         // Initializes and starts the sensor
         // timer - The pointer to the timer
         // return - Whether the begin succeeded
@@ -43,6 +48,5 @@ namespace sensors
         std::uint8_t num_successes{0};
         std::uint8_t num_failures{0};
         std::uint32_t last_sample{0};
-        bool is_fresh;
     };
 }

@@ -14,14 +14,18 @@
 
 namespace sensors
 {
-    Gps::Gps()
+    Gps::Gps()  : m_health(gps_small_fail_threshold,
+            gps_full_fail_threshold,
+            gps_small_recover_threshold,
+            gps_full_recover_threshold)
     {
-        bfs::Ubx sensor(&Serial1);
+        m_sensor = bfs::Ubx(&Serial1);
     }
 
     bool Gps::begin()
     {
-        bool ok = sensor.Begin(baud);
+        bool ok = m_sensor.Begin(baud);
+        m_health.begin(ok);
         return ok;
     }
 
@@ -32,28 +36,28 @@ namespace sensors
 
     bool Gps::isFresh()
     {
-        return false; // PLACEHOLDER
+        return (m_health.get_status() == sensor_status::FAILED);
     }
 
     GpsData Gps::get()
     {
-        bool fail;
-        fail = sensor.Read();
-        m_health.update_sensor_freshness(fail);
-        if (!fail)
+        bool success;
+        success = m_sensor.Read();
+        m_health.update_sensor_freshness(success);
+        if (success)
         {
-            m_stats.latitude = sensor.lat_deg();
-            m_stats.longitude = sensor.lon_deg();
-            m_stats.altitude = sensor.alt_wgs84_m();
-            m_stats.gr_speed = sensor.north_vel_mps();
-            m_stats.n_vel = sensor.north_vel_mps();
-            m_stats.e_vel = sensor.east_vel_mps();
-            m_stats.d_vel = sensor.down_vel_mps();
-            m_stats.utc_day = sensor.utc_day();
-            m_stats.utc_hour = sensor.utc_hour();
-            m_stats.utc_min = sensor.utc_min();
-            m_stats.utc_sec = sensor.utc_sec();
-            m_stats.utc_nanosec = sensor.utc_nano();
+            m_stats.latitude = m_sensor.lat_deg();
+            m_stats.longitude = m_sensor.lon_deg();
+            m_stats.altitude = m_sensor.alt_wgs84_m();
+            m_stats.gr_speed = m_sensor.gnd_spd_mps();
+            m_stats.n_vel = m_sensor.north_vel_mps();
+            m_stats.e_vel = m_sensor.east_vel_mps();
+            m_stats.d_vel = m_sensor.down_vel_mps();
+            m_stats.utc_day = m_sensor.utc_day();
+            m_stats.utc_hour = m_sensor.utc_hour();
+            m_stats.utc_min = m_sensor.utc_min();
+            m_stats.utc_sec = m_sensor.utc_sec();
+            m_stats.utc_nanosec = m_sensor.utc_nano();
         }
         return m_stats;
     }

@@ -11,6 +11,11 @@
 #include "SensorStatus.h"
 #include "logging_interface.h"
 
+#define gps_small_fail_threshold 10
+#define gps_full_fail_threshold 10
+#define gps_small_recover_threshold 10
+#define gps_full_recover_threshold 10
+
 namespace sensors
 {
 
@@ -48,7 +53,7 @@ namespace sensors
     private:
         GpsData m_stats;
 
-        bfs::Ubx sensor;
+        bfs::Ubx m_sensor;
 
         SensorHealth m_health;
     };

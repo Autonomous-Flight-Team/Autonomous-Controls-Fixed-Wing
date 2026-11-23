@@ -9,7 +9,10 @@
 
 namespace sensors
 {
-    Pito::Pito()
+    Pito::Pito() : m_health(pito_small_fail_threshold,
+            pito_full_fail_threshold,
+            pito_small_recover_threshold,
+            pito_full_recover_threshold)
     {
         // TODO
     }
@@ -18,8 +21,8 @@ namespace sensors
     {
         Wire.begin();
         Wire.setClock(400000);
-        sensor.Config(&Wire, 0x28, 1.0f, -1.0f);
-        bool to_return = sensor.Begin();
+        m_sensor.Config(&Wire, 0x28, 1.0f, -1.0f);
+        bool to_return = m_sensor.Begin();
         m_health.begin(to_return);
         return to_return;
     }
@@ -31,16 +34,18 @@ namespace sensors
 
     bool Pito::isFresh()
     {
-        return false; // PLACEHOLDER
+        return (m_health.get_status() == sensor_status::FAILED);
     }
 
     PitoData Pito::get()
     {
-        if (sensor.Read())
+        bool read_succeed = m_sensor.Read();
+        if (read_succeed)
         {
-            m_stats.pressure_Pa = sensor.pres_pa();
-            m_stats.die_temp_C = sensor.die_temp_c();
+            m_stats.pressure_Pa = m_sensor.pres_pa();
+            m_stats.die_temp_C = m_sensor.die_temp_c();
         }
+        m_health.update_sensor_freshness(read_succeed);
         return m_stats;
     }
 

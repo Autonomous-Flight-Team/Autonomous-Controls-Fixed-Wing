@@ -13,6 +13,11 @@
 #include "SensorStatus.h"
 #include "logging_interface.h"
 
+#define imu_small_fail_threshold 10
+#define imu_full_fail_threshold 10
+#define imu_small_recover_threshold 10
+#define imu_full_recover_threshold 10
+
 namespace sensors
 {
     struct ImuData
@@ -48,7 +53,7 @@ namespace sensors
 
         SensorHealth m_health;
 
-        LSM9DS1 sensor;
+        LSM9DS1 m_sensor;
     };
 }
 #endif //IMU
