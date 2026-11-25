@@ -39,7 +39,7 @@ namespace sensors
 
     bool Barometer::isFresh()
     {
-        return (m_health.get_status() == sensor_status::FAILED);
+        return (m_health.get_status() != sensor_status::FAILED);
     }
 
     BaroData Barometer::get()

@@ -36,7 +36,7 @@ namespace sensors
 
     bool Gps::isFresh()
     {
-        return (m_health.get_status() == sensor_status::FAILED);
+        return (m_health.get_status() != sensor_status::FAILED);
     }
 
     GpsData Gps::get()
