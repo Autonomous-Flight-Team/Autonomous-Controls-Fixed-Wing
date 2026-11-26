@@ -13,6 +13,7 @@ namespace sensors
             }
         }
     }
+
     SensorHealth::SensorHealth(std::uint8_t fail_threshold_,  
             std::uint8_t full_fail_threshold_, 
             std::uint8_t success_threshold_from_degraded_,
@@ -22,6 +23,10 @@ namespace sensors
         m_cfg.full_fail_threshold = full_fail_threshold_;
         m_cfg.success_threshold_from_degraded = success_threshold_from_degraded_;
         m_cfg.success_threshold_from_failed = success_threshold_from_failed_;
+    }
+
+    SensorHealth::SensorHealth(sensor_trust_limits m_cfg_) {
+        m_cfg = m_cfg_;
     }
 
     // 😀

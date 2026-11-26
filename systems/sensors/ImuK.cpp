@@ -36,7 +36,7 @@ namespace sensors
 
     bool ImuK::isFresh()
     {
-        return (m_health.get_status() == sensor_status::FAILED);
+        return (m_health.get_status() != sensor_status::FAILED);
     }
 
     ImuData ImuK::get()

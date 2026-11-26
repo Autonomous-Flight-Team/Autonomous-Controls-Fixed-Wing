@@ -76,14 +76,15 @@ void setup()
     {
     }
     pinMode(LED_BUILTIN, OUTPUT);
-
+    
     logging_ok = initialize_sd();
     if (!logging_ok)
-        Serial.println("[ERROR] Logging disabled: SD init failed. Continuing without logging.");
+    Serial.println("[ERROR] Logging disabled: SD init failed. Continuing without logging.");
     else
     {
         // Record the trust thresholds once at the start of every run.
         sensors::sensor_trust_limits limits = {3, 10, 5, 20}; // TODO real values
+        health_logger = sensors::SensorHealth(limits);
         health_logger.loggable(SENSOR, SUB_SENSOR_TRUST, &limits);
     }
 }

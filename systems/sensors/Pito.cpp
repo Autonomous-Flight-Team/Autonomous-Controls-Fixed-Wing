@@ -34,7 +34,7 @@ namespace sensors
 
     bool Pito::isFresh()
     {
-        return (m_health.get_status() == sensor_status::FAILED);
+        return (m_health.get_status() != sensor_status::FAILED);
     }
 
     PitoData Pito::get()
