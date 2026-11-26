@@ -29,7 +29,6 @@ namespace sensors
         m_cfg = m_cfg_;
     }
 
-    // 😀
     bool SensorHealth::begin(bool start_succeeded)
     {
         if (start_succeeded)

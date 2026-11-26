@@ -17,13 +17,14 @@ namespace sensors
     class SensorHealth : public logging
     {
     public:
+        SensorHealth() = default;
         //Constructor with sensor limits
         SensorHealth(std::uint8_t fail_threshold_,  
             std::uint8_t full_fail_threshold_, 
             std::uint8_t success_threshold_from_degraded_,
             std::uint8_t success_threshold_from_failed_); 
         //Constructor with sensor limits
-        SensorHealth(sensor_trust_limits m_cfg_); 
+        SensorHealth(sensor_trust_limits m_cfg_);
         // Initializes and starts the sensor
         // timer - The pointer to the timer
         // return - Whether the begin succeeded
